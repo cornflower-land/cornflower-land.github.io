@@ -51,6 +51,21 @@
     transform: translateY(-1px);
     box-shadow: 0 6px 14px rgba(0,113,227,0.4);
   }
+
+  .group-card-wrapper { position: relative; }
+  .group-actions {
+    position: absolute; top: 12px; right: 12px;
+    display: flex; gap: 4px; z-index: 10;
+  }
+  .group-actions button {
+    background: white; border: 1px solid #d1d1d6; border-radius: 6px;
+    width: 28px; height: 28px; padding: 0; cursor: pointer;
+    font-size: 14px; display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .group-actions button:hover { background: #f0f0f5; }
+  .group-actions .edit-btn { color: #0071e3; }
+  .group-actions .delete-btn { color: #d70015; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -146,6 +161,19 @@
   </div>
 </div>
 
+
+<div id="rename-group-modal" class="modal hidden">
+  <div class="modal-content">
+    <h2>Переименовать группу</h2>
+    <input type="text" id="rename-group-input" placeholder="Новое название" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 1px solid #d1d1d6; border-radius: 6px;">
+    <div id="rename-group-error" style="color: #d70015; font-size: 12px; margin-bottom: 8px; display: none;"></div>
+    <div class="modal-buttons" style="justify-content: space-between;">
+      <button id="rename-group-cancel" style="border: none; color: #0071e3; background: none; padding: 0; cursor: pointer;">Отмена</button>
+      <button id="rename-group-submit" class="primary">Сохранить</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://xzawwrmyrlihodrowxji.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6YXd3cm15cmxpaG9kcm93eGppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIzNjQ5NzksImV4cCI6MjEwNzk0MDk3OX0.cS5G7e-pJ6eX68w07JhW2ZcWESPRyZb3Mrn-cKP0yyA';
@@ -184,6 +212,7 @@ document.getElementById('reset-submit').addEventListener('click', async () => {
 
 
 let currentUser = null;
+let currentUserRole = 'user';
 let isRegisterMode = false;
 
 const authModal = document.getElementById('auth-modal');
@@ -198,6 +227,7 @@ async function init() {
     document.getElementById('user-name-display').textContent = profile?.display_name || 'Участник';
     document.getElementById('user-info').style.display = 'block';
     document.getElementById('loginBtn').style.display = 'none';
+      currentUserRole = profile?.role || 'user';
     
     if (profile?.role === 'admin') {
       document.getElementById('createGroupBtn').style.display = 'block';
@@ -357,6 +387,9 @@ async function loadGroups() {
   }
 
   data.forEach(group => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'group-card-wrapper';
+
     const a = document.createElement('a');
     a.href = `schedule.html?group=${group.id}`;
     a.className = 'group-card';
@@ -364,10 +397,83 @@ async function loadGroups() {
       <h2>${group.name}</h2>
       <p>Перейти к расписанию &rarr;</p>
     `;
-    container.appendChild(a);
+    wrapper.appendChild(a);
+
+    // Если админ - добавляем кнопки управления
+    if (currentUserRole === 'admin') {
+      const actions = document.createElement('div');
+      actions.className = 'group-actions';
+      
+      const editBtn = document.createElement('button');
+      editBtn.className = 'edit-btn';
+      editBtn.innerHTML = '✎';
+      editBtn.title = 'Переименовать';
+      editBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openRenameModal(group.id, group.name);
+      };
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'delete-btn';
+      delBtn.innerHTML = '✕';
+      delBtn.title = 'Удалить группу';
+      delBtn.onclick = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (confirm(`ВНИМАНИЕ! Вы уверены, что хотите удалить группу "${group.name}"?
+
+Все расписания и бронирования этой группы будут навсегда удалены!`)) {
+          await supabaseClient.from('groups').delete().eq('id', group.id);
+          loadGroups();
+        }
+      };
+
+      actions.appendChild(editBtn);
+      actions.appendChild(delBtn);
+      wrapper.appendChild(actions);
+    }
+
+    container.appendChild(wrapper);
   });
 }
 
+// ---------- Переименование группы ----------
+let groupToRename = null;
+const renameModal = document.getElementById('rename-group-modal');
+const renameInput = document.getElementById('rename-group-input');
+const renameError = document.getElementById('rename-group-error');
+
+function openRenameModal(id, currentName) {
+  groupToRename = id;
+  renameInput.value = currentName;
+  renameError.style.display = 'none';
+  renameModal.classList.remove('hidden');
+  renameInput.focus();
+}
+
+document.getElementById('rename-group-cancel').onclick = () => {
+  renameModal.classList.add('hidden');
+};
+
+document.getElementById('rename-group-submit').onclick = async () => {
+  const newName = renameInput.value.trim();
+  if (!newName) {
+    renameError.textContent = 'Название не может быть пустым';
+    renameError.style.display = 'block';
+    return;
+  }
+
+  const { error } = await supabaseClient.from('groups').update({ name: newName }).eq('id', groupToRename);
+  
+  if (error) {
+    renameError.textContent = error.message;
+    renameError.style.display = 'block';
+  } else {
+    renameModal.classList.add('hidden');
+    loadGroups();
+  }
+};
 
 // ---------- Управление профилем ----------
 const profileModal = document.getElementById('profile-modal');
