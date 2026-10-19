@@ -123,6 +123,11 @@
   .legend-swatch.free { background: #34c759; border-color: #28a745; }
   .legend-swatch.best { background: #0071e3; border-color: #0071e3; }
   .legend-swatch.busy-best { background: #ff3b30; border-color: #ff3b30; }
+
+  .slot-bar.venue-block { background-color: #8e8e93 !important; cursor: pointer; }
+  .slot-bar.group-booked { background-color: #af52de !important; cursor: pointer; }
+  .room-row td { background-color: #f9f9fb; }
+  .room-row .name-cell { font-weight: bold; color: #1d1d1f; }
 </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -197,6 +202,22 @@
   </table>
 </div>
 
+
+<div id="booking-modal" class="modal hidden">
+  <div class="modal-content">
+    <h2>Управление помещением</h2>
+    <p style="font-size: 13px; color: #6e6e73; margin-top: 0;">Выберите статус для этого времени.</p>
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <button id="btn-venue" style="background: #8e8e93; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer;">Закрыть помещение (Аренда)</button>
+      <button id="btn-group" style="background: #af52de; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer;">Забронировать для этой группы</button>
+      <button id="btn-free" style="background: white; color: #1d1d1f; padding: 10px; border: 1px solid #d1d1d6; border-radius: 6px; cursor: pointer;">Освободить время</button>
+    </div>
+    <div class="modal-buttons" style="margin-top: 16px;">
+      <button id="booking-cancel" style="border: none; color: #0071e3; background: none; padding: 0; cursor: pointer;">Отмена</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const HOURS = [8,9,10,11,12,13,14,15,16,17,18,19,20,21,22]; // 15 слотов
 const BLOCK_SIZE = 4;        // минимум 4 часа
@@ -206,6 +227,10 @@ const MONTHS = ['января','февраля','марта','апреля','м�
 
 let days = [];
 let participants = [];
+let venueBookings = [];
+let groupBookings = [];
+let currentUserRole = 'user';
+let bookingTarget = { date: null, hour: null };
 
 // ---------- утилиты ----------
 function dateKey(d) {
@@ -286,6 +311,61 @@ function renderGrid() {
 
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
+
+  // --- Строка Бронирования Помещения ---
+  const roomTr = document.createElement('tr');
+  roomTr.className = 'room-row';
+  const roomNameTd = document.createElement('td');
+  roomNameTd.className = 'name-cell';
+  roomNameTd.textContent = 'Помещение';
+  roomTr.appendChild(roomNameTd);
+
+  days.forEach((d, di) => {
+    const td = document.createElement('td');
+    const dayCell = document.createElement('div');
+    dayCell.className = 'day-cell';
+    const dateStr = dateKey(d);
+
+    HOURS.forEach((h, hi) => {
+      const slot = document.createElement('div');
+      slot.className = 'hour-slot';
+
+      if (hi > 0) {
+        const label = document.createElement('span');
+        label.className = 'hour-label';
+        label.textContent = String(h).padStart(2, '0');
+        slot.appendChild(label);
+      }
+
+      const bar = document.createElement('div');
+      bar.className = 'slot-bar';
+      
+      const vBlock = venueBookings.find(b => b.date === dateStr && b.hour === h);
+      const gBlock = groupBookings.find(b => b.date === dateStr && b.hour === h);
+
+      if (vBlock) bar.classList.add('venue-block');
+      else if (gBlock) bar.classList.add('group-booked');
+
+      if (currentUserRole === 'admin') {
+        bar.title = 'Нажмите, чтобы изменить статус';
+        bar.style.pointerEvents = 'auto';
+        bar.addEventListener('click', (e) => {
+          e.preventDefault();
+          openBookingModal(dateStr, h);
+        });
+      } else {
+        bar.style.pointerEvents = 'none'; // Обычные юзеры не могут кликать
+      }
+
+      slot.appendChild(bar);
+      dayCell.appendChild(slot);
+    });
+    td.appendChild(dayCell);
+    roomTr.appendChild(td);
+  });
+  tbody.appendChild(roomTr);
+  // -------------------------------------
+
 
   if (participants.length === 0) {
     const tr = document.createElement('tr');
@@ -542,7 +622,16 @@ async function loadFromDB() {
     }
 
     // Получаем расписания
-    const { data, error } = await supabaseClient.from('schedules').select('*').eq('group_id', GROUP_ID);
+    const { data: profile } = await supabaseClient.from('profiles').select('role').eq('id', currentUser.id).single();
+      currentUserRole = profile?.role || 'user';
+
+      const { data: vData } = await supabaseClient.from('venue_blocks').select('*');
+      venueBookings = vData || [];
+
+      const { data: gData } = await supabaseClient.from('group_bookings').select('*');
+      groupBookings = gData || [];
+
+      const { data, error } = await supabaseClient.from('schedules').select('*').eq('group_id', GROUP_ID);
     if (error) {
       console.error("Ошибка загрузки:", error);
     } else if (data) {
