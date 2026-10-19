@@ -399,6 +399,7 @@ function renderGrid() {
     
     // Показываем панель управления для авторизованных
     if (toolbar) toolbar.style.display = 'flex';
+    if (resultBlock) resultBlock.style.display = ''; // Сбрасываем инлайн-стиль, чтобы CSS заработал
   }
 
   // Управление панелью админа (БЕЗ дублирующего const)
@@ -857,6 +858,7 @@ function calculate() {
 function showResult(html) {
   const r = document.getElementById('result');
   r.innerHTML = html;
+  r.style.display = 'block'; // Принудительно убираем display: none
   r.classList.add('show');
 }
 
@@ -1265,7 +1267,6 @@ document.addEventListener('mouseup', () => {
 
 
 initDays();
-renderGrid();
 loadFromDB();
 </script>
 
