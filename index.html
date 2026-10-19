@@ -282,7 +282,7 @@ function renderGrid() {
     td.style.padding = '20px';
     td.style.textAlign = 'center';
     td.style.color = '#6e6e73';
-    td.textContent = 'Пока нет данных. Введите имя в появившейся строке и отметьте время.';
+    td.textContent = 'Загрузка данных...';
     tr.appendChild(td);
     tbody.appendChild(tr);
     return;
@@ -570,6 +570,18 @@ async function loadFromDB() {
     }
 
     if (currentUser) {
+      // Проверяем, есть ли текущий пользователь в списке
+      const myRowIndex = participants.findIndex(p => p.id === currentUser.id);
+      if (myRowIndex === -1) {
+        // Если нет, добавляем пустую строку для него
+        participants.push({
+          id: currentUser.id,
+          name: '',
+          availability: {}
+        });
+      }
+      
+      // Сортируем, чтобы своя строка всегда была первой
       participants.sort((a, b) => {
         if (a.id === currentUser.id) return -1;
         if (b.id === currentUser.id) return 1;
