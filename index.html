@@ -629,7 +629,11 @@ document.getElementById('joinLeaveBtn').addEventListener('click', async () => {
   if (isJoined) {
     // Выходим из группы
     if (!confirm('Вы уверены, что хотите покинуть группу? Ваши отметки времени будут удалены.')) return;
-    await supabaseClient.from('schedules').delete().eq('user_id', currentUser.id);
+    const { error } = await supabaseClient.from('schedules').delete().eq('user_id', currentUser.id);
+    if (error) {
+      alert("Ошибка при удалении: " + error.message);
+      return;
+    }
   } else {
     // Присоединяемся
     await supabaseClient.from('schedules').insert({
