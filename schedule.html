@@ -392,9 +392,6 @@ function renderGrid() {
         bar.className = 'slot-bar';
         bar.dataset.date = dateStr;
         bar.dataset.hour = h;
-        bar.dataset.pi = pi;
-        bar.dataset.di = di;
-        bar.dataset.hi = hi;
         
         const vBlock = venueBookings.find(b => b.date === dateStr && b.hour === h);
         const gBlock = groupBookings.find(b => b.date === dateStr && b.hour === h);
