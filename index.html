@@ -152,10 +152,7 @@
 <p class="subtitle">Отметьте часы, когда вы свободны. Минимальная длительность встречи — 4 часа.</p>
 
 <div class="hint">
-  <b>Как пользоваться:</b> каждый участник открывает эту страницу на своём устройстве,
-  нажимает «+ Добавить участника», вписывает имя и отмечает свободные часы.
-  Затем нажимает «Рассчитать лучшее время».
-  Если участники заполняют на разных устройствах, они могут отправить вам скриншот или продиктовать свои отметки.
+  <b>Как пользоваться:</b> нажмите «Войти / Регистрация», укажите свой email и пароль. Затем введите ваше имя и просто закрасьте часы, когда вы свободны. Ваши изменения сохранятся автоматически и будут видны всем участникам.
 </div>
 
 <div class="toolbar">
@@ -175,6 +172,13 @@
 </div>
 
 <div class="grid-wrap">
+
+<div id="login-prompt" style="display: none; text-align: center; padding: 60px 20px;">
+  <h2 style="font-size: 20px; margin-bottom: 16px;">Расписание пока скрыто</h2>
+  <p style="color: #6e6e73; margin-bottom: 24px;">Чтобы увидеть расписание и отметить своё время, вам нужно войти в систему.</p>
+  <button id="centerLoginBtn" class="primary" style="padding: 12px 24px; font-size: 16px; border-radius: 8px;">Войдите или зарегистрируйтесь, чтобы увидеть расписание</button>
+</div>
+
   <table id="grid">
     <thead id="thead"></thead>
     <tbody id="tbody"></tbody>
@@ -255,6 +259,19 @@ function renderHeaders() {
 
 function renderGrid() {
   renderHeaders();
+  const prompt = document.getElementById('login-prompt');
+  const table = document.getElementById('grid');
+
+  if (!currentUser) {
+    prompt.style.display = 'block';
+    table.style.display = 'none';
+    document.getElementById('tbody').innerHTML = '';
+    return;
+  } else {
+    prompt.style.display = 'none';
+    table.style.display = '';
+  }
+
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
 
@@ -265,7 +282,7 @@ function renderGrid() {
     td.style.padding = '20px';
     td.style.textAlign = 'center';
     td.style.color = '#6e6e73';
-    td.textContent = 'Нажмите «+ Добавить участника», чтобы начать';
+    td.textContent = 'Пока нет данных. Введите имя в появившейся строке и отметьте время.';
     tr.appendChild(td);
     tbody.appendChild(tr);
     return;
@@ -587,6 +604,9 @@ async function save() {
 // ---------- события и запуск ----------
 
 document.getElementById('calculate').addEventListener('click', calculate);
+document.getElementById('centerLoginBtn').addEventListener('click', () => {
+  document.getElementById('loginBtn').click();
+});
  document.getElementById('refreshBtn').addEventListener('click', loadFromDB);
 
 initDays();
