@@ -390,6 +390,20 @@ document.addEventListener('mouseup', () => {
   }
 });
 
+// ---------- Supabase Инициализация ----------
+const SUPABASE_URL = 'https://xzawwrmyrlihodrowxji.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6YXd3cm15cmxpaG9kcm93eGppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIzNjQ5NzksImV4cCI6MjEwNzk0MDk3OX0.cS5G7e-pJ6eX68w07JhW2ZcWESPRyZb3Mrn-cKP0yyA';
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let currentUser = null;
+let isRegisterMode = false;
+
+// ---------- Авторизация (элементы) ----------
+const authModal = document.getElementById('auth-modal');
+const loginBtn = document.getElementById('loginBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const userInfo = document.getElementById('user-info');
+const authError = document.getElementById('auth-error');
+
 // ---------- расчёт ----------
 function calculate() {
   if (participants.length === 0) {
