@@ -1041,20 +1041,22 @@ async function save() {
 
 
 document.getElementById('tab-login').addEventListener('click', () => {
-  isRegisterMode = false;
-  document.getElementById('tab-login').className = 'primary';
-  document.getElementById('tab-register').className = '';
-  document.getElementById('name-wrapper').style.display = 'none';
-  document.getElementById('auth-hint').textContent = 'Введите email и пароль, чтобы войти.';
-});
+      isRegisterMode = false;
+      document.getElementById('tab-login').className = 'primary';
+      document.getElementById('tab-register').className = '';
+      document.getElementById('name-wrapper').style.display = 'none';
+      document.getElementById('auth-hint').textContent = 'Введите email и пароль, чтобы войти.';
+      document.getElementById('auth-submit').textContent = 'Войти';
+    });
 
 document.getElementById('tab-register').addEventListener('click', () => {
-  isRegisterMode = true;
-  document.getElementById('tab-login').className = '';
-  document.getElementById('tab-register').className = 'primary';
-  document.getElementById('name-wrapper').style.display = 'block';
-  document.getElementById('auth-hint').textContent = 'Создайте аккаунт, чтобы видеть расписание.';
-});
+      isRegisterMode = true;
+      document.getElementById('tab-login').className = '';
+      document.getElementById('tab-register').className = 'primary';
+      document.getElementById('name-wrapper').style.display = 'block';
+      document.getElementById('auth-hint').textContent = 'Создайте аккаунт, чтобы видеть расписание.';
+      document.getElementById('auth-submit').textContent = 'Зарегистрироваться';
+    });
 
 
 // ---------- Логика бронирования ----------
@@ -1172,6 +1174,7 @@ document.getElementById('prof-delete').addEventListener('click', async () => {
 
 loginBtn.addEventListener('click', () => {
   authModal.classList.remove('hidden');
+  document.getElementById('tab-login').click();
   document.getElementById('auth-email').focus();
 });
 document.getElementById('auth-cancel').addEventListener('click', () => {

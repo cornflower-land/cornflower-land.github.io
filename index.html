@@ -212,29 +212,32 @@ async function init() {
 
 // Управление модальным окном
 document.getElementById('loginBtn').addEventListener('click', () => {
-  authModal.classList.remove('hidden');
-  document.getElementById('auth-email').focus();
-});
+      authModal.classList.remove('hidden');
+      document.getElementById('auth-email').focus();
+      document.getElementById('tab-login').click(); // Принудительно переключаем на Вход
+    });
 document.getElementById('auth-cancel').addEventListener('click', () => {
   authModal.classList.add('hidden');
   authError.style.display = 'none';
 });
 
 document.getElementById('tab-login').addEventListener('click', () => {
-  isRegisterMode = false;
-  document.getElementById('tab-login').className = 'primary';
-  document.getElementById('tab-register').className = '';
-  document.getElementById('name-wrapper').style.display = 'none';
-  document.getElementById('auth-hint').textContent = 'Введите email и пароль, чтобы войти.';
-});
+      isRegisterMode = false;
+      document.getElementById('tab-login').className = 'primary';
+      document.getElementById('tab-register').className = '';
+      document.getElementById('name-wrapper').style.display = 'none';
+      document.getElementById('auth-hint').textContent = 'Введите email и пароль, чтобы войти.';
+      document.getElementById('auth-submit').textContent = 'Войти';
+    });
 
 document.getElementById('tab-register').addEventListener('click', () => {
-  isRegisterMode = true;
-  document.getElementById('tab-login').className = '';
-  document.getElementById('tab-register').className = 'primary';
-  document.getElementById('name-wrapper').style.display = 'block';
-  document.getElementById('auth-hint').textContent = 'Создайте аккаунт, чтобы видеть расписание.';
-});
+      isRegisterMode = true;
+      document.getElementById('tab-login').className = '';
+      document.getElementById('tab-register').className = 'primary';
+      document.getElementById('name-wrapper').style.display = 'block';
+      document.getElementById('auth-hint').textContent = 'Создайте аккаунт, чтобы видеть расписание.';
+      document.getElementById('auth-submit').textContent = 'Зарегистрироваться';
+    });
 
 document.getElementById('auth-submit').addEventListener('click', async () => {
   const email = document.getElementById('auth-email').value;
