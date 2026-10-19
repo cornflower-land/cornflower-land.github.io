@@ -220,7 +220,7 @@
 </div>
 
 
-<div id="admin-tools">
+<div id="admin-tools" style="display: none;">
   <span style="font-weight: bold; margin-right: 10px;">Инструменты:</span>
   <button class="tool-btn venue" data-tool="venue">Недоступно</button>
   <button class="tool-btn group" data-tool="group">Бронь группы</button>
@@ -378,15 +378,27 @@ function renderGrid() {
   renderHeaders();
   const prompt = document.getElementById('login-prompt');
   const table = document.getElementById('grid');
+  const toolbar = document.querySelector('.toolbar');
+  const resultBlock = document.getElementById('result');
+  const adminTools = document.getElementById('admin-tools');
 
   if (!currentUser) {
     prompt.style.display = 'block';
     table.style.setProperty('display', 'none', 'important');
     document.getElementById('tbody').innerHTML = '';
+    
+    // Скрываем всё лишнее для неавторизованных
+    if (toolbar) toolbar.style.display = 'none';
+    if (resultBlock) resultBlock.style.display = 'none';
+    if (adminTools) adminTools.style.display = 'none';
+    
     return;
   } else {
     prompt.style.display = 'none';
     table.style.setProperty('display', 'block', 'important');
+    
+    // Показываем панель управления для авторизованных
+    if (toolbar) toolbar.style.display = 'flex';
   }
 
   const adminTools = document.getElementById('admin-tools');
