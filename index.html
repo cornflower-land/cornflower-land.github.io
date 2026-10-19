@@ -442,7 +442,7 @@ async function loadGroups() {
       const editBtn = document.createElement('button');
       editBtn.className = 'edit-btn';
       editBtn.innerHTML = '✎';
-      editBtn.title = 'Переименовать';
+      editBtn.title = 'Редактировать';
       editBtn.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -595,7 +595,10 @@ document.getElementById('rename-group-submit').onclick = async () => {
     return;
   }
 
-  const { error } = await supabaseClient.from('groups').update({ name: newName }).eq('id', groupToRename);
+  const { error } = await supabaseClient.from('groups').update({ 
+    name: newName,
+    avatar_url: currentGroupAvatarUrl
+  }).eq('id', groupToRename);
   
   if (error) {
     renameError.textContent = error.message;
