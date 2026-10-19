@@ -124,10 +124,30 @@
   .legend-swatch.best { background: #0071e3; border-color: #0071e3; }
   .legend-swatch.busy-best { background: #ff3b30; border-color: #ff3b30; }
 
-  .slot-bar.venue-block { background-color: #8e8e93 !important; cursor: pointer; }
-  .slot-bar.group-booked { background-color: #af52de !important; cursor: pointer; }
-  .room-row td { background-color: #f9f9fb; }
-  .room-row .name-cell { font-weight: bold; color: #1d1d1f; }
+  
+  .slot-bar.venue-block { background-color: #8e8e93 !important; cursor: not-allowed; }
+  .slot-bar.group-booked { 
+    background-color: #af52de !important; 
+    cursor: not-allowed; 
+    color: white; 
+    font-size: 9px; 
+    line-height: 1; 
+    text-align: center; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    overflow: hidden;
+    font-weight: 600;
+  }
+  
+  #grid.painting-mode { cursor: crosshair !important; }
+  
+  .tool-btn { transition: all 0.1s; }
+  .tool-btn.active { box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); transform: scale(0.95); }
+  .tool-btn.venue.active { background: #8e8e93 !important; color: white !important; }
+  .tool-btn.group.active { background: #af52de !important; color: white !important; }
+  .tool-btn.clear.active { background: #ff3b30 !important; color: white !important; }
+
 </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -321,11 +341,9 @@ function renderGrid() {
     table.style.setProperty('display', 'block', 'important');
   }
 
-  // Управление панелью админа
   const adminTools = document.getElementById('admin-tools');
   if (currentUserRole === 'admin') {
     adminTools.style.display = 'flex';
-    // Заполняем селект групп (если пуст)
     const select = document.getElementById('booking-group-select');
     if (select.options.length === 0 && allGroups.length > 0) {
       allGroups.forEach(g => {
@@ -370,16 +388,20 @@ function renderGrid() {
 
         const bar = document.createElement('div');
         bar.className = 'slot-bar';
+        bar.dataset.date = dateStr;
+        bar.dataset.hour = h;
         
         const vBlock = venueBookings.find(b => b.date === dateStr && b.hour === h);
         const gBlock = groupBookings.find(b => b.date === dateStr && b.hour === h);
 
         if (vBlock) bar.classList.add('venue-block');
-        else if (gBlock) bar.classList.add('group-booked');
+        else if (gBlock) {
+          bar.classList.add('group-booked');
+          bar.textContent = gBlock.groups?.name ? gBlock.groups.name.substring(0, 3) : '';
+        }
 
-        // Привязываем рисование
         bar.addEventListener('mousedown', (e) => {
-          if (!currentTool) return; // Кисть не выбрана
+          if (!currentTool) return;
           e.preventDefault();
           isDrawing = true;
           applyTool(dateStr, h);
@@ -446,8 +468,9 @@ function renderGrid() {
 
         const bar = document.createElement('div');
         bar.className = 'slot-bar';
+        bar.dataset.date = dateStr;
+        bar.dataset.hour = h;
         
-        // Проверяем, есть ли аренда или бронь на этот час
         const vBlock = venueBookings.find(b => b.date === dateStr && b.hour === h);
         const gBlock = groupBookings.find(b => b.date === dateStr && b.hour === h);
 
@@ -457,9 +480,8 @@ function renderGrid() {
         } else if (gBlock) {
           bar.classList.add('group-booked');
           bar.title = `Забронировано: ${gBlock.groups?.name || 'Группа'}`;
-          bar.textContent = gBlock.groups?.name ? gBlock.groups.name.substring(0, 3) : ''; // Показываем первые 3 буквы группы
+          bar.textContent = gBlock.groups?.name ? gBlock.groups.name.substring(0, 3) : '';
         } else {
-          // Если свободно, показываем отметку участника
           if (p.availability[dateStr][hi]) bar.classList.add('free');
           
           bar.dataset.pi = pi;
@@ -485,7 +507,6 @@ function renderGrid() {
             bar.style.pointerEvents = 'none';
           }
         }
-
         slot.appendChild(bar);
         dayCell.appendChild(slot);
       });
@@ -497,30 +518,70 @@ function renderGrid() {
 }
 
 // Логика применения кисти
-async function applyTool(dateStr, hour) {
+function applyTool(dateStr, hour) {
+  // 1. Мгновенно обновляем локальные данные и DOM
   if (currentTool === 'venue') {
-    await supabaseClient.from('group_bookings').delete().eq('date', dateStr).eq('hour', hour);
-    await supabaseClient.from('venue_blocks').delete().eq('date', dateStr).eq('hour', hour);
-    await supabaseClient.from('venue_blocks').insert({ date: dateStr, hour: hour });
+    groupBookings = groupBookings.filter(b => !(b.date === dateStr && b.hour === hour));
+    if (!venueBookings.find(b => b.date === dateStr && b.hour === hour)) {
+      venueBookings.push({ date: dateStr, hour: hour });
+    }
   } else if (currentTool === 'group') {
     const groupId = document.getElementById('booking-group-select').value;
-    if (!groupId) return alert('Выберите группу для брони!');
-    await supabaseClient.from('group_bookings').delete().eq('date', dateStr).eq('hour', hour);
-    await supabaseClient.from('venue_blocks').delete().eq('date', dateStr).eq('hour', hour);
-    await supabaseClient.from('group_bookings').insert({ group_id: groupId, date: dateStr, hour: hour });
+    if (!groupId) return alert('Выберите группу!');
+    venueBookings = venueBookings.filter(b => !(b.date === dateStr && b.hour === hour));
+    const existing = groupBookings.find(b => b.date === dateStr && b.hour === hour);
+    if (existing) existing.group_id = groupId;
+    else groupBookings.push({ group_id: groupId, date: dateStr, hour: hour, groups: allGroups.find(g => g.id === groupId) });
   } else if (currentTool === 'clear') {
-    await supabaseClient.from('group_bookings').delete().eq('date', dateStr).eq('hour', hour);
-    await supabaseClient.from('venue_blocks').delete().eq('date', dateStr).eq('hour', hour);
+    groupBookings = groupBookings.filter(b => !(b.date === dateStr && b.hour === hour));
+    venueBookings = venueBookings.filter(b => !(b.date === dateStr && b.hour === hour));
   }
-  
-  // Мгновенно обновляем интерфейс (без полной перезагрузки)
-  // Так как мы рисуем быстро, просто перезапрашиваем данные для актуальности
-  // (в идеале нужно менять локальные массивы, но для простоты перезагрузим)
-  const { data: vData } = await supabaseClient.from('venue_blocks').select('*');
-  venueBookings = vData || [];
-  const { data: gData } = await supabaseClient.from('group_bookings').select('*, groups(name)');
-  groupBookings = gData || [];
-  renderGrid();
+
+  // 2. Обновляем все DOM-элементы для этого времени
+  document.querySelectorAll(`.slot-bar[data-date="${dateStr}"][data-hour="${hour}"]`).forEach(bar => {
+    bar.className = 'slot-bar';
+    bar.textContent = '';
+    bar.title = '';
+    
+    const vBlock = venueBookings.find(b => b.date === dateStr && b.hour === hour);
+    const gBlock = groupBookings.find(b => b.date === dateStr && b.hour === hour);
+
+    if (vBlock) {
+      bar.classList.add('venue-block');
+      bar.title = 'Помещение занято арендодателем';
+    } else if (gBlock) {
+      bar.classList.add('group-booked');
+      const gName = gBlock.groups?.name || 'Группа';
+      bar.title = `Забронировано: ${gName}`;
+      bar.textContent = gName.substring(0, 3);
+    } else {
+      // Восстанавливаем свободное время для участника (если это его ячейка)
+      if (bar.dataset.pi !== undefined) {
+        const p = participants[bar.dataset.pi];
+        const d = days[bar.dataset.di];
+        if (p && p.availability[dateKey(d)][bar.dataset.hi]) {
+          bar.classList.add('free');
+        }
+      }
+    }
+  });
+
+  // 3. Отправляем в БД в фоне (без await, чтобы не тормозило)
+  if (currentTool === 'venue') {
+    supabaseClient.from('group_bookings').delete().eq('date', dateStr).eq('hour', hour).then();
+    supabaseClient.from('venue_blocks').delete().eq('date', dateStr).eq('hour', hour).then(() => {
+      supabaseClient.from('venue_blocks').insert({ date: dateStr, hour: hour }).then();
+    });
+  } else if (currentTool === 'group') {
+    const groupId = document.getElementById('booking-group-select').value;
+    supabaseClient.from('group_bookings').delete().eq('date', dateStr).eq('hour', hour).then();
+    supabaseClient.from('venue_blocks').delete().eq('date', dateStr).eq('hour', hour).then(() => {
+      supabaseClient.from('group_bookings').insert({ group_id: groupId, date: dateStr, hour: hour }).then();
+    });
+  } else if (currentTool === 'clear') {
+    supabaseClient.from('group_bookings').delete().eq('date', dateStr).eq('hour', hour).then();
+    supabaseClient.from('venue_blocks').delete().eq('date', dateStr).eq('hour', hour).then();
+  }
 }
 
 // Глобальные переменные для протяжки
@@ -865,21 +926,38 @@ document.getElementById('joinLeaveBtn').addEventListener('click', async () => {
 // Логика панели инструментов
 document.querySelectorAll('.tool-btn').forEach(btn => {
   btn.addEventListener('click', (e) => {
-    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-    e.target.classList.add('active');
-    currentTool = e.target.dataset.tool;
-    
+    const btnEl = e.target.closest('.tool-btn');
+    const tool = btnEl.dataset.tool;
+    const grid = document.getElementById('grid');
     const select = document.getElementById('booking-group-select');
-    if (currentTool === 'group') {
-      select.style.display = 'block';
-    } else {
+
+    // Если нажали на ту же кисть - выключаем её
+    if (currentTool === tool) {
+      currentTool = null;
+      btnEl.classList.remove('active');
+      grid.classList.remove('painting-mode');
       select.style.display = 'none';
+    } else {
+      // Включаем новую кисть
+      currentTool = tool;
+      document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+      btnEl.classList.add('active');
+      grid.classList.add('painting-mode');
+      
+      if (tool === 'group') {
+        select.style.display = 'block';
+      } else {
+        select.style.display = 'none';
+      }
     }
   });
 });
 
 document.addEventListener('mouseup', () => {
-  isDrawing = false;
+  if (isDrawing) {
+    isDrawing = false;
+    loadFromDB(); // Синхронизируем финальный результат с сервером
+  }
 });
 
 
