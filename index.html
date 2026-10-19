@@ -274,14 +274,14 @@ function renderGrid() {
   const table = document.getElementById('grid');
 
   if (!currentUser) {
-    prompt.style.display = 'block';
-    table.style.display = 'none';
-    document.getElementById('tbody').innerHTML = '';
-    return;
-  } else {
-    prompt.style.display = 'none';
-    table.style.display = 'block';
-  }
+      prompt.style.display = 'block';
+      table.style.setProperty('display', 'none', 'important');
+      document.getElementById('tbody').innerHTML = '';
+      return;
+    } else {
+      prompt.style.display = 'none';
+      table.style.setProperty('display', 'block', 'important');
+    }
 
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
@@ -591,6 +591,16 @@ async function save() {
 
 
 // ---------- события и запуск ----------
+
+loginBtn.addEventListener('click', () => {
+  authModal.classList.remove('hidden');
+  document.getElementById('auth-email').focus();
+});
+document.getElementById('auth-cancel').addEventListener('click', () => {
+  authModal.classList.add('hidden');
+  authError.style.display = 'none';
+});
+
 
 document.getElementById('calculate').addEventListener('click', calculate);
 document.getElementById('centerLoginBtn').addEventListener('click', () => {
