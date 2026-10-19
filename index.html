@@ -203,19 +203,37 @@ document.getElementById('auth-submit').addEventListener('click', async () => {
   }
 
   if (isRegisterMode) {
-    const displayName = document.getElementById('auth-display-name').value;
+    const displayName = document.getElementById('auth-display-name').value.trim();
     if (!displayName) {
       authError.textContent = 'Пожалуйста, введите имя';
       authError.style.display = 'block';
       return;
     }
+
+    // ПРОВЕРКА: Занято ли имя?
+    const { count } = await supabaseClient.from('profiles').select('*', { count: 'exact', head: true }).eq('display_name', displayName);
+    if (count > 0) {
+      authError.textContent = 'Это отображаемое имя уже занято. Выберите другое.';
+      authError.style.display = 'block';
+      return;
+    }
+
+    // Попытка регистрации
     const { data, error } = await supabaseClient.auth.signUp({ 
       email, password, options: { data: { display_name: displayName } } 
     });
+
     if (error) {
       authError.textContent = error.message;
       authError.style.display = 'block';
     } else {
+      // ПРОВЕРКА: Если email уже есть, Supabase не выдает ошибку, но identities будет пустым
+      if (data.user && data.user.identities && data.user.identities.length === 0) {
+        authError.textContent = 'Этот email уже зарегистрирован. Попробуйте войти.';
+        authError.style.display = 'block';
+        return;
+      }
+
       if (data.user && !data.session) {
         alert('Регистрация успешна! Проверьте почту.');
         authModal.classList.add('hidden');
@@ -223,6 +241,7 @@ document.getElementById('auth-submit').addEventListener('click', async () => {
         window.location.reload();
       }
     }
+  }
   } else {
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) {
