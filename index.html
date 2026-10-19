@@ -138,11 +138,18 @@
 
 <div id="auth-modal" class="modal hidden" style="z-index: 200;">
   <div class="modal-content" style="max-width: 350px;">
-    <h2>Вход в систему</h2>
-    <p style="font-size: 13px; color: #6e6e73; margin-top: 0;">Введите email и пароль. Если аккаунта нет, он создастся автоматически. <b>Email нигде не отображается и нужен только для входа.</b></p>
+    <h2>Добро пожаловать!</h2>
+    <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+      <button id="tab-login" class="primary" style="flex: 1; padding: 8px;">Вход</button>
+      <button id="tab-register" style="flex: 1; padding: 8px;">Регистрация</button>
+    </div>
+    <p id="auth-hint" style="font-size: 13px; color: #6e6e73; margin-top: 0;">Введите email и пароль, чтобы войти.</p>
     <input type="email" id="auth-email" placeholder="Email" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 1px solid #d1d1d6; border-radius: 6px;">
     <input type="password" id="auth-password" placeholder="Пароль" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 1px solid #d1d1d6; border-radius: 6px;">
-    <input type="text" id="auth-display-name" placeholder="Отображаемое имя (как вас называть?)" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 1px solid #d1d1d6; border-radius: 6px;">
+    <div id="name-wrapper" style="display: none;">
+      <input type="text" id="auth-display-name" placeholder="Отображаемое имя (как вас называть?)" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 1px solid #d1d1d6; border-radius: 6px;">
+      <p style="font-size: 11px; color: #6e6e73; margin-top: 0; margin-bottom: 8px;">Email нигде не отображается и нужен только для входа.</p>
+    </div>
     <div id="auth-error" style="color: #d70015; font-size: 12px; margin-bottom: 8px; display: none;"></div>
     <div class="modal-buttons" style="justify-content: space-between;">
       <button id="auth-cancel" style="background: none; border: none; color: #0071e3; padding: 0;">Отмена</button>
@@ -489,6 +496,7 @@ const SUPABASE_URL = 'https://xzawwrmyrlihodrowxji.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6YXd3cm15cmxpaG9kcm93eGppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIzNjQ5NzksImV4cCI6MjEwNzk0MDk3OX0.cS5G7e-pJ6eX68w07JhW2ZcWESPRyZb3Mrn-cKP0yyA';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentUser = null;
+let isRegisterMode = false;
 
 // ---------- Авторизация ----------
 const authModal = document.getElementById('auth-modal');
@@ -497,6 +505,22 @@ const logoutBtn = document.getElementById('logoutBtn');
 const userInfo = document.getElementById('user-info');
 const userEmailDisplay = document.getElementById('user-email-display');
 const authError = document.getElementById('auth-error');
+
+document.getElementById('tab-login').addEventListener('click', () => {
+  isRegisterMode = false;
+  document.getElementById('tab-login').className = 'primary';
+  document.getElementById('tab-register').className = '';
+  document.getElementById('name-wrapper').style.display = 'none';
+  document.getElementById('auth-hint').textContent = 'Введите email и пароль, чтобы войти.';
+});
+
+document.getElementById('tab-register').addEventListener('click', () => {
+  isRegisterMode = true;
+  document.getElementById('tab-login').className = '';
+  document.getElementById('tab-register').className = 'primary';
+  document.getElementById('name-wrapper').style.display = 'block';
+  document.getElementById('auth-hint').textContent = 'Создайте аккаунт, чтобы отмечать свободное время.';
+});
 
 loginBtn.addEventListener('click', () => {
   authModal.classList.remove('hidden');
@@ -518,29 +542,39 @@ document.getElementById('auth-submit').addEventListener('click', async () => {
     return;
   }
 
-  // Пытаемся войти
-  let { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-
-  // Если пользователя нет, регистрируем
-  if (error && error.message.includes('Invalid login credentials')) {
+  if (isRegisterMode) {
+    // Режим регистрации
     const displayName = document.getElementById('auth-display-name').value;
-    const { data: signUpData, error: signUpError } = await supabaseClient.auth.signUp({ email, password, options: { data: { display_name: displayName } } });
-    if (signUpError) {
-      authError.textContent = signUpError.message;
+    if (!displayName) {
+      authError.textContent = 'Пожалуйста, введите отображаемое имя';
+      authError.style.display = 'block';
+      return;
+    }
+    const { data, error } = await supabaseClient.auth.signUp({ 
+      email, 
+      password, 
+      options: { data: { display_name: displayName } } 
+    });
+    if (error) {
+      authError.textContent = error.message;
       authError.style.display = 'block';
     } else {
-      if (signUpData.user && !signUpData.session) {
-        alert('Регистрация почти завершена! Мы отправили письмо на вашу почту. Перейдите по ссылке из письма, чтобы подтвердить аккаунт и войти.');
+      if (data.user && !data.session) {
+        alert('Регистрация успешна! Проверьте почту для подтверждения.');
+        authModal.classList.add('hidden');
       } else {
-        // Если сессия выдана сразу (Email Confirm выключен)
         window.location.reload();
       }
     }
-  } else if (error) {
-    authError.textContent = error.message;
-    authError.style.display = 'block';
   } else {
-    window.location.reload();
+    // Режим входа
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) {
+      authError.textContent = 'Неверный email или пароль';
+      authError.style.display = 'block';
+    } else {
+      window.location.reload();
+    }
   }
 });
 
@@ -606,8 +640,7 @@ async function save() {
 
       const { data, error } = await supabaseClient.from('schedules').upsert({
         user_id: currentUser.id,
-        name: myRow.name,
-        availability: myRow.availability,
+                availability: myRow.availability,
         updated_at: new Date()
       }, { onConflict: 'user_id' }).select();
 
