@@ -130,7 +130,7 @@
 
 <div id="auth-container" style="text-align: right; margin-bottom: 16px; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
   <div id="user-info" style="display: none; margin-bottom: 8px;">
-    <span style="font-size: 14px; color: #1d1d1f;">Вы вошли как: <b id="user-email-display"></b></span>
+    <span style="font-size: 14px; color: #1d1d1f;">Вы вошли как: <b id="user-name-display">Участник</b></span>
     <button id="logoutBtn" style="margin-left: 10px; padding: 4px 8px; font-size: 12px;">Выйти</button>
   </div>
   <button id="loginBtn" class="primary" style="padding: 6px 12px; font-size: 13px;">Войти / Регистрация</button>
@@ -139,9 +139,10 @@
 <div id="auth-modal" class="modal hidden" style="z-index: 200;">
   <div class="modal-content" style="max-width: 350px;">
     <h2>Вход в систему</h2>
-    <p style="font-size: 13px; color: #6e6e73; margin-top: 0;">Введите email и пароль. Если аккаунта нет, он создастся автоматически.</p>
+    <p style="font-size: 13px; color: #6e6e73; margin-top: 0;">Введите email и пароль. Если аккаунта нет, он создастся автоматически. <b>Email нигде не отображается и нужен только для входа.</b></p>
     <input type="email" id="auth-email" placeholder="Email" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 1px solid #d1d1d6; border-radius: 6px;">
     <input type="password" id="auth-password" placeholder="Пароль" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 1px solid #d1d1d6; border-radius: 6px;">
+    <input type="text" id="auth-display-name" placeholder="Отображаемое имя (как вас называть?)" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 1px solid #d1d1d6; border-radius: 6px;">
     <div id="auth-error" style="color: #d70015; font-size: 12px; margin-bottom: 8px; display: none;"></div>
     <div class="modal-buttons" style="justify-content: space-between;">
       <button id="auth-cancel" style="background: none; border: none; color: #0071e3; padding: 0;">Отмена</button>
@@ -305,7 +306,7 @@ function renderGrid() {
     input.type = 'text';
     input.placeholder = 'Имя';
     input.value = p.name;
-    input.disabled = !isMe;
+    input.disabled = true;
     input.addEventListener('blur', e => {
       participants[pi].name = e.target.value;
       save();
@@ -522,7 +523,8 @@ document.getElementById('auth-submit').addEventListener('click', async () => {
 
   // Если пользователя нет, регистрируем
   if (error && error.message.includes('Invalid login credentials')) {
-    const { data: signUpData, error: signUpError } = await supabaseClient.auth.signUp({ email, password });
+    const displayName = document.getElementById('auth-display-name').value;
+    const { data: signUpData, error: signUpError } = await supabaseClient.auth.signUp({ email, password, options: { data: { display_name: displayName } } });
     if (signUpError) {
       authError.textContent = signUpError.message;
       authError.style.display = 'block';
@@ -556,21 +558,23 @@ async function loadFromDB() {
     if (currentUser) {
       userInfo.style.display = 'block';
       loginBtn.style.display = 'none';
-      userEmailDisplay.textContent = currentUser.email;
+      const { data: profile } = await supabaseClient.from('profiles').select('display_name').eq('id', currentUser.id).single();
+      document.getElementById('user-name-display').textContent = profile?.display_name || 'Участник';
     } else {
       userInfo.style.display = 'none';
       loginBtn.style.display = 'block';
     }
 
-    const { data, error } = await supabaseClient.from('schedules').select('*');
+    const { data, error } = await supabaseClient.from('schedules').select('*, profiles(display_name)');
     if (error) {
       console.error("Ошибка загрузки:", error);
     } else if (data) {
       participants = data.map(row => ({
         id: row.user_id,
-        name: row.name || '',
+        name: row.profiles?.display_name || 'Участник',
         availability: row.availability || {}
       }));
+    }
     }
 
     if (currentUser) {
