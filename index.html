@@ -304,7 +304,7 @@ function renderGrid() {
 
     const input = document.createElement('input');
     input.type = 'text';
-    input.placeholder = 'Имя';
+    input.placeholder = 'Загрузка...';
     input.value = p.name;
     input.disabled = true;
     input.addEventListener('blur', e => {
@@ -575,21 +575,16 @@ async function loadFromDB() {
         availability: row.availability || {}
       }));
     }
-    }
 
     if (currentUser) {
-      // Проверяем, есть ли текущий пользователь в списке
       const myRowIndex = participants.findIndex(p => p.id === currentUser.id);
       if (myRowIndex === -1) {
-        // Если нет, добавляем пустую строку для него
         participants.push({
           id: currentUser.id,
-          name: '',
+          name: 'Участник',
           availability: {}
         });
       }
-      
-      // Сортируем, чтобы своя строка всегда была первой
       participants.sort((a, b) => {
         if (a.id === currentUser.id) return -1;
         if (b.id === currentUser.id) return 1;
