@@ -199,6 +199,7 @@
 <div class="toolbar">
   <button id="joinLeaveBtn" class="primary" style="display: none;">Присоединиться к участникам</button>
   <button id="refreshBtn">Обновить данные</button>
+  <button id="clearMyScheduleBtn" style="display: none; color: #d70015; border-color: #d70015;">Очистить мои часы</button>
   <button id="calculate">Рассчитать лучшее время</button>
   <select id="calc-duration" style="padding: 8px; border-radius: 8px; border: 1px solid #d1d1d6; font-family: inherit; font-size: 14px;">
     <option value="4">Ищу 4 часа</option>
@@ -1053,8 +1054,11 @@ async function loadFromDB() {
 
 function updateJoinButton() {
   const btn = document.getElementById('joinLeaveBtn');
+  const clearBtn = document.getElementById('clearMyScheduleBtn');
+  
   if (!currentUser) {
     btn.style.display = 'none';
+    clearBtn.style.display = 'none';
     return;
   }
   
@@ -1064,9 +1068,11 @@ function updateJoinButton() {
   if (isJoined) {
     btn.textContent = 'Покинуть группу';
     btn.className = 'danger';
+    clearBtn.style.display = 'block'; // Показываем кнопку очистки
   } else {
     btn.textContent = 'Присоединиться к участникам';
     btn.className = 'primary';
+    clearBtn.style.display = 'none'; // Скрываем, если не в группе
   }
 }
 
@@ -1301,6 +1307,33 @@ document.addEventListener('mouseup', () => {
   }
 });
 
+
+
+document.getElementById('clearMyScheduleBtn').addEventListener('click', async () => {
+  if (!currentUser) return;
+  
+  // Проверяем, есть ли пользователь в группе
+  const myRow = participants.find(p => p.id === currentUser.id);
+  if (!myRow) {
+    alert('Вы еще не присоединились к группе.');
+    return;
+  }
+
+  if (!confirm('Вы уверены, что хотите удалить ВСЕ свои отметки о свободном времени в этой группе? Это действие нельзя отменить.')) {
+    return;
+  }
+
+  // Очищаем локальные данные
+  myRow.availability = {};
+  
+  // Сохраняем в базу (функция save перезапишет пустой объект)
+  await save();
+  
+  // Перерисовываем сетку
+  renderGrid();
+  
+  alert('Все ваши отметки удалены.');
+});
 
 initDays();
 loadFromDB();
