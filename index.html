@@ -133,10 +133,55 @@
   </div>
 </div>
 
+
+<div id="reset-password-modal" class="modal hidden">
+  <div class="modal-content">
+    <h2>Сброс пароля</h2>
+    <p style="font-size: 13px; color: #6e6e73; margin-top: 0;">Вы перешли по ссылке для восстановления доступа. Пожалуйста, придумайте новый пароль.</p>
+    <input type="password" id="reset-new-password" placeholder="Новый пароль" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 1px solid #d1d1d6; border-radius: 6px;">
+    <div id="reset-error" style="color: #d70015; font-size: 12px; margin-bottom: 8px; display: none;"></div>
+    <div class="modal-buttons" style="justify-content: flex-end;">
+      <button id="reset-submit" class="primary">Сохранить пароль</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://xzawwrmyrlihodrowxji.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6YXd3cm15cmxpaG9kcm93eGppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIzNjQ5NzksImV4cCI6MjEwNzk0MDk3OX0.cS5G7e-pJ6eX68w07JhW2ZcWESPRyZb3Mrn-cKP0yyA';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ---------- Обработка сброса пароля ----------
+const resetModal = document.getElementById('reset-password-modal');
+const resetError = document.getElementById('reset-error');
+
+supabaseClient.auth.onAuthStateChange((event, session) => {
+  if (event === 'PASSWORD_RECOVERY') {
+    resetModal.classList.remove('hidden');
+  }
+});
+
+document.getElementById('reset-submit').addEventListener('click', async () => {
+  const newPass = document.getElementById('reset-new-password').value;
+  resetError.style.display = 'none';
+
+  if (!newPass || newPass.length < 6) {
+    resetError.textContent = 'Пароль должен быть не менее 6 символов';
+    resetError.style.display = 'block';
+    return;
+  }
+
+  const { error } = await supabaseClient.auth.updateUser({ password: newPass });
+  
+  if (error) {
+    resetError.textContent = 'Ошибка: ' + error.message;
+    resetError.style.display = 'block';
+  } else {
+    alert('Пароль успешно изменен! Теперь вы можете войти с новым паролем.');
+    resetModal.classList.add('hidden');
+  }
+});
+
 
 let currentUser = null;
 let isRegisterMode = false;
@@ -408,7 +453,7 @@ document.getElementById('forgot-password').addEventListener('click', async () =>
   }
   
   const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin + '/schedule.html', // После сброса перекинет в расписание (нужно будет войти)
+    redirectTo: window.location.origin + window.location.pathname, // После сброса перекинет в расписание (нужно будет войти)
   });
   
   if (error) {
