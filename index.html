@@ -167,7 +167,7 @@
 </div>
 
 <div class="toolbar">
-  
+  <button id="joinLeaveBtn" class="primary" style="display: none;">Присоединиться к участникам</button>
   <button id="refreshBtn">Обновить данные</button>
   <button id="calculate">Рассчитать лучшее время</button>
   
@@ -293,7 +293,8 @@ function renderGrid() {
     td.style.padding = '20px';
     td.style.textAlign = 'center';
     td.style.color = '#6e6e73';
-    td.textContent = 'Загрузка данных...';
+    td.style.fontStyle = 'italic';
+    td.textContent = 'В этой группе еще нет участников';
     tr.appendChild(td);
     tbody.appendChild(tr);
     return;
@@ -392,153 +393,16 @@ document.addEventListener('mouseup', () => {
 // ---------- расчёт ----------
 function calculate() {
   if (participants.length === 0) {
-    return showResult('<h2>Нет участников</h2><div class="details">Добавьте хотя бы одного участника.</div>');
-  }
-  const hasAny = participants.some(p =>
-    Object.values(p.availability).some(arr => arr.some(v => v))
-  );
-  if (!hasAny) {
-    return showResult('<h2>Нет данных</h2><div class="details">Пока никто не отметил свободное время.</div>');
-  }
-
-  let best = null;
-  for (let di = 0; di < NUM_DAYS; di++) {
-    for (let hi = 0; hi <= HOURS.length - BLOCK_SIZE; hi++) {
-      let count = 0;
-      for (const p of participants) {
-        const avail = p.availability[dateKey(days[di])] || [];
-        let free = true;
-        for (let k = 0; k < BLOCK_SIZE; k++) {
-          if (!avail[hi + k]) { free = false; break; }
-        }
-        if (free) count++;
-      }
-      if (!best || count > best.count) {
-        best = { day: di, hour: hi, count };
-      }
-    }
-  }
-
-  document.querySelectorAll('.slot-bar.best, .slot-bar.busy-best').forEach(c => c.classList.remove('best', 'busy-best'));
-
-  if (!best || best.count === 0) {
-    return showResult('<h2>Нет общего времени</h2><div class="details">Пока нет ни одного 4-часового окна, свободного хотя бы для одного участника.</div>');
-  }
-
-  for (let k = 0; k < BLOCK_SIZE; k++) {
-    const hi = best.hour + k;
-    participants.forEach((p, pi) => {
-      const avail = p.availability[dateKey(days[best.day])] || [];
-      const isFree = avail[hi];
-      const bar = document.querySelector(`.slot-bar[data-pi="${pi}"][data-di="${best.day}"][data-hi="${hi}"]`);
-      if (bar) {
-        if (isFree) bar.classList.add('best');
-        else bar.classList.add('busy-best');
-      }
-    });
-  }
-
-  const day = days[best.day];
-  const startH = HOURS[best.hour];
-  const endH = HOURS[best.hour] + BLOCK_SIZE;
-  const total = participants.length;
-
-  showResult(`
-    <h2>Лучшее время</h2>
-    <div class="best-time">${formatDay(day)}, ${formatHour(startH)}–${formatHour(endH)}</div>
-    <div class="details">Свободны ${best.count} из ${total} ${plural(total, 'участника', 'участников', 'участников')}.</div>
-  `);
-}
-
-function showResult(html) {
-  const r = document.getElementById('result');
-  r.innerHTML = html;
-  r.classList.add('show');
-}
-
-// ---------- сохранение ----------
-function save() {
-  try {
-    const todayKey = dateKey(new Date());
-    participants.forEach(p => {
-      Object.keys(p.availability).forEach(k => {
-        if (k < todayKey) delete p.availability[k];
-      });
-    });
-    localStorage.setItem('litclub_schedule', JSON.stringify({ participants }));
-  } catch (e) { console.warn(e); }
-}
-
-function load() {
-  try {
-    const raw = localStorage.getItem('litclub_schedule');
-    if (!raw) return false;
-    const data = JSON.parse(raw);
-    if (!Array.isArray(data.participants)) return false;
-    // базовая валидация
-    const ok = data.participants.every(p =>
-      p && typeof p.name === 'string' && p.availability && typeof p.availability === 'object'
-    );
-    if (!ok) return false;
-    participants = data.participants;
-    return true;
-  } catch (e) { return false; }
-}
-
-async function clearAll() { await supabaseClient.auth.signOut(); window.location.reload(); }
-
-// ---------- экспорт / импорт ----------
-
-
-
-// ---------- Supabase Инициализация ----------
-const SUPABASE_URL = 'https://xzawwrmyrlihodrowxji.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6YXd3cm15cmxpaG9kcm93eGppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIzNjQ5NzksImV4cCI6MjEwNzk0MDk3OX0.cS5G7e-pJ6eX68w07JhW2ZcWESPRyZb3Mrn-cKP0yyA';
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-let currentUser = null;
-let isRegisterMode = false;
-
-// ---------- Авторизация ----------
-const authModal = document.getElementById('auth-modal');
-const loginBtn = document.getElementById('loginBtn');
-const logoutBtn = document.getElementById('logoutBtn');
-const userInfo = document.getElementById('user-info');
-const userEmailDisplay = document.getElementById('user-email-display');
-const authError = document.getElementById('auth-error');
-
-document.getElementById('tab-login').addEventListener('click', () => {
-  isRegisterMode = false;
-  document.getElementById('tab-login').className = 'primary';
-  document.getElementById('tab-register').className = '';
-  document.getElementById('name-wrapper').style.display = 'none';
-  document.getElementById('auth-hint').textContent = 'Введите email и пароль, чтобы войти.';
-});
-
-document.getElementById('tab-register').addEventListener('click', () => {
-  isRegisterMode = true;
-  document.getElementById('tab-login').className = '';
-  document.getElementById('tab-register').className = 'primary';
-  document.getElementById('name-wrapper').style.display = 'block';
-  document.getElementById('auth-hint').textContent = 'Создайте аккаунт, чтобы отмечать свободное время.';
-});
-
-loginBtn.addEventListener('click', () => {
-  authModal.classList.remove('hidden');
-  document.getElementById('auth-email').focus();
-});
-document.getElementById('auth-cancel').addEventListener('click', () => {
-  authModal.classList.add('hidden');
-  authError.style.display = 'none';
-});
-
-document.getElementById('auth-submit').addEventListener('click', async () => {
-  const email = document.getElementById('auth-email').value;
-  const password = document.getElementById('auth-password').value;
-  authError.style.display = 'none';
-
-  if (!email || !password) {
-    authError.textContent = 'Заполните email и пароль';
-    authError.style.display = 'block';
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = NUM_DAYS + 1;
+    td.style.padding = '20px';
+    td.style.textAlign = 'center';
+    td.style.color = '#6e6e73';
+    td.style.fontStyle = 'italic';
+    td.textContent = 'В этой группе еще нет участников';
+    tr.appendChild(td);
+    tbody.appendChild(tr);
     return;
   }
 
@@ -589,36 +453,36 @@ async function loadFromDB() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     currentUser = session ? session.user : null;
 
+    // Получаем всех пользователей и их имена
+    const { data: profiles } = await supabaseClient.from('profiles').select('id, display_name');
+    const profileMap = {};
+    if (profiles) {
+      profiles.forEach(p => profileMap[p.id] = p.display_name);
+    }
+
     if (currentUser) {
       userInfo.style.display = 'block';
       loginBtn.style.display = 'none';
-      const { data: profile } = await supabaseClient.from('profiles').select('display_name').eq('id', currentUser.id).single();
-      document.getElementById('user-name-display').textContent = profile?.display_name || 'Участник';
+      document.getElementById('user-name-display').textContent = profileMap[currentUser.id] || 'Участник';
     } else {
       userInfo.style.display = 'none';
       loginBtn.style.display = 'block';
     }
 
-    const { data, error } = await supabaseClient.from('schedules').select('*, profiles(display_name)');
+    // Получаем расписания
+    const { data, error } = await supabaseClient.from('schedules').select('*');
     if (error) {
       console.error("Ошибка загрузки:", error);
     } else if (data) {
       participants = data.map(row => ({
         id: row.user_id,
-        name: row.profiles?.display_name || 'Участник',
+        name: profileMap[row.user_id] || 'Участник',
         availability: row.availability || {}
       }));
     }
 
+    // Сортируем, чтобы своя строка была первой (если она есть)
     if (currentUser) {
-      const myRowIndex = participants.findIndex(p => p.id === currentUser.id);
-      if (myRowIndex === -1) {
-        participants.push({
-          id: currentUser.id,
-          name: 'Участник',
-          availability: {}
-        });
-      }
       participants.sort((a, b) => {
         if (a.id === currentUser.id) return -1;
         if (b.id === currentUser.id) return 1;
@@ -628,7 +492,27 @@ async function loadFromDB() {
   } catch (e) {
     console.error("Критическая ошибка в loadFromDB:", e);
   } finally {
+    updateJoinButton();
     renderGrid();
+  }
+}
+
+function updateJoinButton() {
+  const btn = document.getElementById('joinLeaveBtn');
+  if (!currentUser) {
+    btn.style.display = 'none';
+    return;
+  }
+  
+  const isJoined = participants.some(p => p.id === currentUser.id);
+  btn.style.display = 'block';
+  
+  if (isJoined) {
+    btn.textContent = 'Покинуть группу';
+    btn.className = 'danger';
+  } else {
+    btn.textContent = 'Присоединиться к участникам';
+    btn.className = 'primary';
   }
 }
 
@@ -658,6 +542,24 @@ document.getElementById('centerLoginBtn').addEventListener('click', () => {
   document.getElementById('loginBtn').click();
 });
  document.getElementById('refreshBtn').addEventListener('click', loadFromDB);
+
+document.getElementById('joinLeaveBtn').addEventListener('click', async () => {
+  if (!currentUser) return;
+  const isJoined = participants.some(p => p.id === currentUser.id);
+  
+  if (isJoined) {
+    // Выходим из группы
+    if (!confirm('Вы уверены, что хотите покинуть группу? Ваши отметки времени будут удалены.')) return;
+    await supabaseClient.from('schedules').delete().eq('user_id', currentUser.id);
+  } else {
+    // Присоединяемся
+    await supabaseClient.from('schedules').insert({
+      user_id: currentUser.id,
+      availability: {}
+    });
+  }
+  loadFromDB();
+});
 
 initDays();
 renderGrid();
