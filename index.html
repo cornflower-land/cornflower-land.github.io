@@ -524,7 +524,7 @@ document.getElementById('auth-submit').addEventListener('click', async () => {
       authError.style.display = 'block';
     } else {
       if (signUpData.user && !signUpData.session) {
-        alert('Регистрация успешна. Проверьте почту для подтверждения (если включено в Supabase).');
+        alert('Регистрация почти завершена! Мы отправили письмо на вашу почту. Перейдите по ссылке из письма, чтобы подтвердить аккаунт и войти.');
       } else {
         // Если сессия выдана сразу (Email Confirm выключен)
         window.location.reload();
