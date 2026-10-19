@@ -59,6 +59,7 @@
 <div class="auth-bar" id="auth-bar">
   <div id="user-info" style="display: none;">
     <span id="user-name-display">Участник</span>
+    <button id="profileBtn" style="margin-right: 10px;">Настройки</button>
     <button id="logoutBtn">Выйти</button>
   </div>
   <button id="loginBtn" class="primary">Войти / Регистрация</button>
@@ -89,6 +90,7 @@
     </div>
     <div id="auth-error" style="color: #d70015; font-size: 12px; margin-bottom: 8px; display: none;"></div>
     <div class="modal-buttons">
+      <button id="forgot-password" style="border: none; color: #6e6e73; background: none; padding: 0; font-size: 12px;">Забыли пароль?</button>
       <button id="auth-cancel" style="border: none; color: #0071e3; background: none; padding: 0;">Отмена</button>
       <button id="auth-submit" class="primary">Войти</button>
     </div>
@@ -277,8 +279,130 @@ async function loadGroups() {
   });
 }
 
+
+// ---------- Управление профилем ----------
+const profileModal = document.getElementById('profile-modal');
+const nameError = document.getElementById('name-error');
+
+document.getElementById('profileBtn').addEventListener('click', async () => {
+  // Заполняем текущее имя
+  const { data: profile } = await supabaseClient.from('profiles').select('display_name').eq('id', currentUser.id).single();
+  document.getElementById('prof-name').value = profile?.display_name || '';
+  document.getElementById('prof-password').value = '';
+  nameError.style.display = 'none';
+  profileModal.classList.remove('hidden');
+});
+
+document.getElementById('prof-cancel').addEventListener('click', () => {
+  profileModal.classList.add('hidden');
+});
+
+document.getElementById('prof-save').addEventListener('click', async () => {
+  const newName = document.getElementById('prof-name').value.trim();
+  const newPass = document.getElementById('prof-password').value;
+  nameError.style.display = 'none';
+
+  if (!newName) {
+    nameError.textContent = 'Имя не может быть пустым';
+    nameError.style.display = 'block';
+    return;
+  }
+
+  // Проверка на занятость имени (если оно изменилось)
+  const { data: currentProfile } = await supabaseClient.from('profiles').select('display_name').eq('id', currentUser.id).single();
+  if (currentProfile.display_name !== newName) {
+    const { count } = await supabaseClient.from('profiles').select('*', { count: 'exact', head: true }).eq('display_name', newName);
+    if (count > 0) {
+      nameError.textContent = 'Это имя уже занято. Выберите другое.';
+      nameError.style.display = 'block';
+      return;
+    }
+  }
+
+  // Сохраняем имя
+  const { error: nameErr } = await supabaseClient.from('profiles').update({ display_name: newName }).eq('id', currentUser.id);
+  if (nameErr) {
+    alert('Ошибка при сохранении имени: ' + nameErr.message);
+    return;
+  }
+
+  // Меняем пароль, если введен
+  if (newPass) {
+    if (newPass.length < 6) {
+      nameError.textContent = 'Пароль должен быть не менее 6 символов';
+      nameError.style.display = 'block';
+      return;
+    }
+    const { error: passErr } = await supabaseClient.auth.updateUser({ password: newPass });
+    if (passErr) {
+      alert('Ошибка при смене пароля: ' + passErr.message);
+      return;
+    }
+  }
+
+  alert('Настройки успешно сохранены!');
+  window.location.reload();
+});
+
+document.getElementById('prof-delete').addEventListener('click', async () => {
+  if (!confirm('ВНИМАНИЕ! Это действие навсегда удалит ваш аккаунт и все ваши расписания. Вы уверены?')) return;
+  
+  const { error } = await supabaseClient.rpc('delete_user');
+  if (error) {
+    alert('Ошибка при удалении: ' + error.message);
+  } else {
+    alert('Аккаунт удален.');
+    await supabaseClient.auth.signOut();
+    window.location.reload();
+  }
+});
+
+// ---------- Сброс пароля ----------
+document.getElementById('forgot-password').addEventListener('click', async () => {
+  const email = document.getElementById('auth-email').value;
+  if (!email) {
+    alert('Введите ваш email в поле выше, чтобы мы могли отправить ссылку.');
+    return;
+  }
+  
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + '/schedule.html', // После сброса перекинет в расписание (нужно будет войти)
+  });
+  
+  if (error) {
+    alert('Ошибка: ' + error.message);
+  } else {
+    alert('Ссылка для сброса пароля отправлена на вашу почту!');
+  }
+});
+
+
 init();
 </script>
+
+
+<div id="profile-modal" class="modal hidden">
+  <div class="modal-content">
+    <h2>Настройки профиля</h2>
+    
+    <label style="font-size: 13px; font-weight: bold; margin-bottom: 4px; display: block;">Отображаемое имя</label>
+    <input type="text" id="prof-name" style="width: 100%; padding: 10px; margin-bottom: 4px; border: 1px solid #d1d1d6; border-radius: 6px;">
+    <div id="name-error" style="color: #d70015; font-size: 12px; margin-bottom: 12px; display: none;"></div>
+
+    <label style="font-size: 13px; font-weight: bold; margin-bottom: 4px; display: block;">Сменить пароль (оставьте пустым, если не хотите менять)</label>
+    <input type="password" id="prof-password" placeholder="Новый пароль" style="width: 100%; padding: 10px; margin-bottom: 16px; border: 1px solid #d1d1d6; border-radius: 6px;">
+
+    <div class="modal-buttons" style="justify-content: space-between; margin-bottom: 20px;">
+      <button id="prof-cancel" style="border: none; color: #0071e3; background: none; padding: 0; cursor: pointer;">Отмена</button>
+      <button id="prof-save" class="primary">Сохранить</button>
+    </div>
+
+    <div style="border-top: 1px solid #e5e5ea; padding-top: 16px;">
+      <p style="font-size: 13px; color: #6e6e73; margin-top: 0;">Опасная зона</p>
+      <button id="prof-delete" style="background: white; color: #d70015; border: 1px solid #d70015; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-family: inherit; width: 100%;">Удалить аккаунт навсегда</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
