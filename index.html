@@ -272,19 +272,6 @@ function renderGrid() {
     table.style.display = 'block';
   }
 
-  const prompt = document.getElementById('login-prompt');
-  const table = document.getElementById('grid');
-
-  if (!currentUser) {
-    prompt.style.display = 'block';
-    table.style.display = 'none';
-    document.getElementById('tbody').innerHTML = '';
-    return;
-  } else {
-    prompt.style.display = 'none';
-    table.style.display = '';
-  }
-
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
 
