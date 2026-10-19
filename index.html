@@ -393,21 +393,77 @@ document.addEventListener('mouseup', () => {
 // ---------- расчёт ----------
 function calculate() {
   if (participants.length === 0) {
-    const tr = document.createElement('tr');
-    const td = document.createElement('td');
-    td.colSpan = NUM_DAYS + 1;
-    td.style.padding = '20px';
-    td.style.textAlign = 'center';
-    td.style.color = '#6e6e73';
-    td.style.fontStyle = 'italic';
-    td.textContent = 'В этой группе еще нет участников';
-    tr.appendChild(td);
-    tbody.appendChild(tr);
+    return showResult('<h2>Нет участников</h2><div class="details">В этой группе еще нет участников.</div>');
+  }
+  const hasAny = participants.some(p =>
+    Object.values(p.availability).some(arr => arr.some(v => v))
+  );
+  if (!hasAny) {
+    return showResult('<h2>Нет данных</h2><div class="details">Пока никто не отметил свободное время.</div>');
+  }
+
+  let best = null;
+  for (let di = 0; di < NUM_DAYS; di++) {
+    for (let hi = 0; hi <= HOURS.length - BLOCK_SIZE; hi++) {
+      let count = 0;
+      for (const p of participants) {
+        const avail = p.availability[dateKey(days[di])] || [];
+        let free = true;
+        for (let k = 0; k < BLOCK_SIZE; k++) {
+          if (!avail[hi + k]) { free = false; break; }
+        }
+        if (free) count++;
+      }
+      if (!best || count > best.count) {
+        best = { day: di, hour: hi, count };
+      }
+    }
+  }
+
+  document.querySelectorAll('.slot-bar.best, .slot-bar.busy-best').forEach(c => c.classList.remove('best', 'busy-best'));
+
+  if (!best || best.count === 0) {
+    return showResult('<h2>Нет общего времени</h2><div class="details">Пока нет ни одного 4-часового окна, свободного хотя бы для одного участника.</div>');
+  }
+
+  for (let k = 0; k < BLOCK_SIZE; k++) {
+    const hi = best.hour + k;
+    participants.forEach((p, pi) => {
+      const avail = p.availability[dateKey(days[best.day])] || [];
+      const isFree = avail[hi];
+      const bar = document.querySelector(`.slot-bar[data-pi="${pi}"][data-di="${best.day}"][data-hi="${hi}"]`);
+      if (bar) {
+        if (isFree) bar.classList.add('best');
+        else bar.classList.add('busy-best');
+      }
+    });
+  }
+
+  const day = days[best.day];
+  const startH = HOURS[best.hour];
+  const endH = HOURS[best.hour] + BLOCK_SIZE;
+  const total = participants.length;
+
+  showResult(`
+    <h2>Лучшее время</h2>
+    <div class="best-time">${formatDay(day)}, ${formatHour(startH)}–${formatHour(endH)}</div>
+    <div class="details">Свободны ${best.count} из ${total} ${plural(total, 'участника', 'участников', 'участников')}.</div>
+  `);
+}
+
+// ---------- Авторизация (обработчик кнопки Войти) ----------
+document.getElementById('auth-submit').addEventListener('click', async () => {
+  const email = document.getElementById('auth-email').value;
+  const password = document.getElementById('auth-password').value;
+  authError.style.display = 'none';
+
+  if (!email || !password) {
+    authError.textContent = 'Заполните email и пароль';
+    authError.style.display = 'block';
     return;
   }
 
   if (isRegisterMode) {
-    // Режим регистрации
     const displayName = document.getElementById('auth-display-name').value;
     if (!displayName) {
       authError.textContent = 'Пожалуйста, введите отображаемое имя';
@@ -431,7 +487,6 @@ function calculate() {
       }
     }
   } else {
-    // Режим входа
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) {
       authError.textContent = 'Неверный email или пароль';
