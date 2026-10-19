@@ -398,6 +398,90 @@ function renderGrid() {
 
         if (vBlock) {
           bar.classList.add('venue-block');
+        } else if (gBlock) {
+          bar.classList.add('group-booked');
+          bar.textContent = gBlock.groups?.name || '';
+        }
+
+        bar.addEventListener('mousedown', (e) => {
+          if (!currentTool) return;
+          e.preventDefault();
+          isDrawing = true;
+          applyTool(dateStr, h);
+        });
+        bar.addEventListener('mouseenter', () => {
+          if (isDrawing) applyTool(dateStr, h);
+        });
+
+        slot.appendChild(bar);
+        dayCell.appendChild(slot);
+      });
+      td.appendChild(dayCell);
+      roomTr.appendChild(td);
+    });
+    tbody.appendChild(roomTr);
+  }
+
+  // --- СТРОКИ УЧАСТНИКОВ ---
+  if (participants.length === 0) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = NUM_DAYS + 1;
+    td.style.padding = '20px';
+    td.style.textAlign = 'center';
+    td.style.color = '#6e6e73';
+    td.style.fontStyle = 'italic';
+    td.textContent = 'В этой группе еще нет участников';
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+    return;
+  }
+
+  participants.forEach((p, pi) => {
+    const isMe = currentUser && p.id === currentUser.id;
+    const tr = document.createElement('tr');
+    if (!isMe) tr.style.opacity = '0.6';
+
+    const nameTd = document.createElement('td');
+    nameTd.className = 'name-cell';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = p.name;
+    input.disabled = true;
+    nameTd.appendChild(input);
+    tr.appendChild(nameTd);
+
+    days.forEach((d, di) => {
+      const td = document.createElement('td');
+      const dayCell = document.createElement('div');
+      dayCell.className = 'day-cell';
+      const dateStr = dateKey(d);
+      if (!p.availability[dateStr]) p.availability[dateStr] = Array(HOURS.length).fill(false);
+
+      HOURS.forEach((h, hi) => {
+        const slot = document.createElement('div');
+        slot.className = 'hour-slot';
+
+        if (hi > 0) {
+          const label = document.createElement('span');
+          label.className = 'hour-label';
+          label.textContent = String(h).padStart(2, '0');
+          slot.appendChild(label);
+        }
+
+        const bar = document.createElement('div');
+        bar.className = 'slot-bar';
+        bar.dataset.date = dateStr;
+        bar.dataset.hour = h;
+        bar.dataset.pi = pi;
+        bar.dataset.di = di;
+        bar.dataset.hi = hi;
+        
+        const vBlock = venueBookings.find(b => b.date === dateStr && b.hour === h);
+        const gBlock = groupBookings.find(b => b.date === dateStr && b.hour === h);
+
+        if (vBlock) {
+          bar.classList.add('venue-block');
           bar.title = 'Помещение занято арендодателем';
         } else if (gBlock) {
           bar.classList.add('group-booked');
@@ -406,8 +490,6 @@ function renderGrid() {
         } else {
           if (p.availability[dateStr][hi]) bar.classList.add('free');
           
-          
-
           if (isMe) {
             bar.addEventListener('mousedown', (e) => {
               e.preventDefault();
