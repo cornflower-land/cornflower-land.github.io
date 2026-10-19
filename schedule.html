@@ -188,6 +188,15 @@
   <div class="legend-item"><div class="legend-swatch busy-best"></div>Не сможет прийти</div>
 </div>
 
+
+<div id="admin-tools">
+  <span style="font-weight: bold; margin-right: 10px;">Инструменты:</span>
+  <button class="tool-btn venue" data-tool="venue">Аренда</button>
+  <button class="tool-btn group" data-tool="group">Бронь группы</button>
+  <select id="booking-group-select" style="padding: 6px; border-radius: 6px; border: 1px solid #d1d1d6; display: none;"></select>
+  <button class="tool-btn clear" data-tool="clear">Ластик</button>
+</div>
+
 <div class="grid-wrap">
 
 <div id="login-prompt" style="display: none; text-align: center; padding: 60px 20px;">
@@ -231,6 +240,9 @@ let venueBookings = [];
 let groupBookings = [];
 let currentUserRole = 'user';
 let bookingTarget = { date: null, hour: null };
+let allGroups = [];
+let currentTool = null;
+let isDrawing = false;
 
 // ---------- утилиты ----------
 function dateKey(d) {
@@ -300,73 +312,92 @@ function renderGrid() {
   const table = document.getElementById('grid');
 
   if (!currentUser) {
-      prompt.style.display = 'block';
-      table.style.setProperty('display', 'none', 'important');
-      document.getElementById('tbody').innerHTML = '';
-      return;
-    } else {
-      prompt.style.display = 'none';
-      table.style.setProperty('display', 'block', 'important');
+    prompt.style.display = 'block';
+    table.style.setProperty('display', 'none', 'important');
+    document.getElementById('tbody').innerHTML = '';
+    return;
+  } else {
+    prompt.style.display = 'none';
+    table.style.setProperty('display', 'block', 'important');
+  }
+
+  // Управление панелью админа
+  const adminTools = document.getElementById('admin-tools');
+  if (currentUserRole === 'admin') {
+    adminTools.style.display = 'flex';
+    // Заполняем селект групп (если пуст)
+    const select = document.getElementById('booking-group-select');
+    if (select.options.length === 0 && allGroups.length > 0) {
+      allGroups.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g.id;
+        opt.textContent = g.name;
+        select.appendChild(opt);
+      });
     }
+  } else {
+    adminTools.style.display = 'none';
+  }
 
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
 
-  // --- Строка Бронирования Помещения ---
-  const roomTr = document.createElement('tr');
-  roomTr.className = 'room-row';
-  const roomNameTd = document.createElement('td');
-  roomNameTd.className = 'name-cell';
-  roomNameTd.textContent = 'Помещение';
-  roomTr.appendChild(roomNameTd);
+  // --- СТРОКА ПОМЕЩЕНИЯ (ТОЛЬКО ДЛЯ АДМИНА) ---
+  if (currentUserRole === 'admin') {
+    const roomTr = document.createElement('tr');
+    roomTr.className = 'room-row';
+    const roomNameTd = document.createElement('td');
+    roomNameTd.className = 'name-cell';
+    roomNameTd.textContent = 'Помещение (Админ)';
+    roomTr.appendChild(roomNameTd);
 
-  days.forEach((d, di) => {
-    const td = document.createElement('td');
-    const dayCell = document.createElement('div');
-    dayCell.className = 'day-cell';
-    const dateStr = dateKey(d);
+    days.forEach((d) => {
+      const td = document.createElement('td');
+      const dayCell = document.createElement('div');
+      dayCell.className = 'day-cell';
+      const dateStr = dateKey(d);
 
-    HOURS.forEach((h, hi) => {
-      const slot = document.createElement('div');
-      slot.className = 'hour-slot';
+      HOURS.forEach((h, hi) => {
+        const slot = document.createElement('div');
+        slot.className = 'hour-slot';
 
-      if (hi > 0) {
-        const label = document.createElement('span');
-        label.className = 'hour-label';
-        label.textContent = String(h).padStart(2, '0');
-        slot.appendChild(label);
-      }
+        if (hi > 0) {
+          const label = document.createElement('span');
+          label.className = 'hour-label';
+          label.textContent = String(h).padStart(2, '0');
+          slot.appendChild(label);
+        }
 
-      const bar = document.createElement('div');
-      bar.className = 'slot-bar';
-      
-      const vBlock = venueBookings.find(b => b.date === dateStr && b.hour === h);
-      const gBlock = groupBookings.find(b => b.date === dateStr && b.hour === h);
+        const bar = document.createElement('div');
+        bar.className = 'slot-bar';
+        
+        const vBlock = venueBookings.find(b => b.date === dateStr && b.hour === h);
+        const gBlock = groupBookings.find(b => b.date === dateStr && b.hour === h);
 
-      if (vBlock) bar.classList.add('venue-block');
-      else if (gBlock) bar.classList.add('group-booked');
+        if (vBlock) bar.classList.add('venue-block');
+        else if (gBlock) bar.classList.add('group-booked');
 
-      if (currentUserRole === 'admin') {
-        bar.title = 'Нажмите, чтобы изменить статус';
-        bar.style.pointerEvents = 'auto';
-        bar.addEventListener('click', (e) => {
+        // Привязываем рисование
+        bar.addEventListener('mousedown', (e) => {
+          if (!currentTool) return; // Кисть не выбрана
           e.preventDefault();
-          openBookingModal(dateStr, h);
+          isDrawing = true;
+          applyTool(dateStr, h);
         });
-      } else {
-        bar.style.pointerEvents = 'none'; // Обычные юзеры не могут кликать
-      }
+        bar.addEventListener('mouseenter', () => {
+          if (isDrawing) applyTool(dateStr, h);
+        });
 
-      slot.appendChild(bar);
-      dayCell.appendChild(slot);
+        slot.appendChild(bar);
+        dayCell.appendChild(slot);
+      });
+      td.appendChild(dayCell);
+      roomTr.appendChild(td);
     });
-    td.appendChild(dayCell);
-    roomTr.appendChild(td);
-  });
-  tbody.appendChild(roomTr);
-  // -------------------------------------
+    tbody.appendChild(roomTr);
+  }
 
-
+  // --- СТРОКИ УЧАСТНИКОВ ---
   if (participants.length === 0) {
     const tr = document.createElement('tr');
     const td = document.createElement('td');
@@ -384,35 +415,23 @@ function renderGrid() {
   participants.forEach((p, pi) => {
     const isMe = currentUser && p.id === currentUser.id;
     const tr = document.createElement('tr');
-    if (!isMe) tr.style.opacity = '0.6'; // Чужие строки полупрозрачные
+    if (!isMe) tr.style.opacity = '0.6';
 
-
-    // Ячейка с именем
     const nameTd = document.createElement('td');
     nameTd.className = 'name-cell';
-
     const input = document.createElement('input');
     input.type = 'text';
-    input.placeholder = 'Загрузка...';
     input.value = p.name;
     input.disabled = true;
-    input.addEventListener('blur', e => {
-      participants[pi].name = e.target.value;
-      save();
-    });
     nameTd.appendChild(input);
-
-    
     tr.appendChild(nameTd);
 
-    // Ячейки с днями
     days.forEach((d, di) => {
       const td = document.createElement('td');
       const dayCell = document.createElement('div');
       dayCell.className = 'day-cell';
-      
-      const key = dateKey(d);
-      if (!p.availability[key]) p.availability[key] = Array(HOURS.length).fill(false);
+      const dateStr = dateKey(d);
+      if (!p.availability[dateStr]) p.availability[dateStr] = Array(HOURS.length).fill(false);
 
       HOURS.forEach((h, hi) => {
         const slot = document.createElement('div');
@@ -427,29 +446,45 @@ function renderGrid() {
 
         const bar = document.createElement('div');
         bar.className = 'slot-bar';
-        if (p.availability[key][hi]) bar.classList.add('free');
         
-        bar.dataset.pi = pi;
-        if (!isMe) { bar.style.pointerEvents = 'none'; }
-        bar.dataset.di = di;
-        bar.dataset.hi = hi;
+        // Проверяем, есть ли аренда или бронь на этот час
+        const vBlock = venueBookings.find(b => b.date === dateStr && b.hour === h);
+        const gBlock = groupBookings.find(b => b.date === dateStr && b.hour === h);
 
-        // Логика протяжки мышкой
-        bar.addEventListener('mousedown', (e) => {
-          e.preventDefault();
-          isDragging = true;
-          dragValue = !p.availability[key][hi];
-          p.availability[key][hi] = dragValue;
-          bar.classList.toggle('free', dragValue);
-          save();
-        });
+        if (vBlock) {
+          bar.classList.add('venue-block');
+          bar.title = 'Помещение занято арендодателем';
+        } else if (gBlock) {
+          bar.classList.add('group-booked');
+          bar.title = `Забронировано: ${gBlock.groups?.name || 'Группа'}`;
+          bar.textContent = gBlock.groups?.name ? gBlock.groups.name.substring(0, 3) : ''; // Показываем первые 3 буквы группы
+        } else {
+          // Если свободно, показываем отметку участника
+          if (p.availability[dateStr][hi]) bar.classList.add('free');
+          
+          bar.dataset.pi = pi;
+          bar.dataset.di = di;
+          bar.dataset.hi = hi;
 
-        bar.addEventListener('mouseenter', () => {
-          if (isDragging) {
-            p.availability[key][hi] = dragValue;
-            bar.classList.toggle('free', dragValue);
+          if (isMe) {
+            bar.addEventListener('mousedown', (e) => {
+              e.preventDefault();
+              isDragging = true;
+              dragValue = !p.availability[dateStr][hi];
+              p.availability[dateStr][hi] = dragValue;
+              bar.classList.toggle('free', dragValue);
+              save();
+            });
+            bar.addEventListener('mouseenter', () => {
+              if (isDragging) {
+                p.availability[dateStr][hi] = dragValue;
+                bar.classList.toggle('free', dragValue);
+              }
+            });
+          } else {
+            bar.style.pointerEvents = 'none';
           }
-        });
+        }
 
         slot.appendChild(bar);
         dayCell.appendChild(slot);
@@ -459,6 +494,33 @@ function renderGrid() {
     });
     tbody.appendChild(tr);
   });
+}
+
+// Логика применения кисти
+async function applyTool(dateStr, hour) {
+  if (currentTool === 'venue') {
+    await supabaseClient.from('group_bookings').delete().eq('date', dateStr).eq('hour', hour);
+    await supabaseClient.from('venue_blocks').delete().eq('date', dateStr).eq('hour', hour);
+    await supabaseClient.from('venue_blocks').insert({ date: dateStr, hour: hour });
+  } else if (currentTool === 'group') {
+    const groupId = document.getElementById('booking-group-select').value;
+    if (!groupId) return alert('Выберите группу для брони!');
+    await supabaseClient.from('group_bookings').delete().eq('date', dateStr).eq('hour', hour);
+    await supabaseClient.from('venue_blocks').delete().eq('date', dateStr).eq('hour', hour);
+    await supabaseClient.from('group_bookings').insert({ group_id: groupId, date: dateStr, hour: hour });
+  } else if (currentTool === 'clear') {
+    await supabaseClient.from('group_bookings').delete().eq('date', dateStr).eq('hour', hour);
+    await supabaseClient.from('venue_blocks').delete().eq('date', dateStr).eq('hour', hour);
+  }
+  
+  // Мгновенно обновляем интерфейс (без полной перезагрузки)
+  // Так как мы рисуем быстро, просто перезапрашиваем данные для актуальности
+  // (в идеале нужно менять локальные массивы, но для простоты перезагрузим)
+  const { data: vData } = await supabaseClient.from('venue_blocks').select('*');
+  venueBookings = vData || [];
+  const { data: gData } = await supabaseClient.from('group_bookings').select('*, groups(name)');
+  groupBookings = gData || [];
+  renderGrid();
 }
 
 // Глобальные переменные для протяжки
@@ -632,8 +694,11 @@ async function loadFromDB() {
     const { data: vData } = await supabaseClient.from('venue_blocks').select('*');
     venueBookings = vData || [];
 
-    const { data: gData } = await supabaseClient.from('group_bookings').select('*');
+    const { data: gData } = await supabaseClient.from('group_bookings').select('*, groups(name)');
     groupBookings = gData || [];
+
+    const { data: grData } = await supabaseClient.from('groups').select('id, name');
+    allGroups = grData || [];
 
     const { data, error } = await supabaseClient.from('schedules').select('*').eq('group_id', GROUP_ID);
     if (error) {
@@ -795,6 +860,28 @@ document.getElementById('joinLeaveBtn').addEventListener('click', async () => {
   }
   loadFromDB();
 });
+
+
+// Логика панели инструментов
+document.querySelectorAll('.tool-btn').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    currentTool = e.target.dataset.tool;
+    
+    const select = document.getElementById('booking-group-select');
+    if (currentTool === 'group') {
+      select.style.display = 'block';
+    } else {
+      select.style.display = 'none';
+    }
+  });
+});
+
+document.addEventListener('mouseup', () => {
+  isDrawing = false;
+});
+
 
 initDays();
 renderGrid();
