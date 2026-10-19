@@ -79,8 +79,8 @@
 
 <div class="auth-bar" id="auth-bar">
   <div id="user-info" style="display: none;">
-    <img id="user-avatar-top" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; display: none; margin-right: 8px; vertical-align: middle;">
     <span id="user-name-display">Участник</span>
+    <img id="user-avatar-top" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; display: none; margin-left: 8px; margin-right: 12px; vertical-align: middle;">
     <button id="profileBtn" style="margin-right: 10px;">Настройки</button>
     <button id="logoutBtn">Выйти</button>
   </div>
@@ -107,7 +107,7 @@
     <input type="email" id="auth-email" placeholder="Email" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 1px solid #d1d1d6; border-radius: 6px;">
     <input type="password" id="auth-password" placeholder="Пароль" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 1px solid #d1d1d6; border-radius: 6px;">
     <div id="name-wrapper" style="display: none;">
-      <input type="text" id="auth-display-name" placeholder="Отображаемое имя (как вас называть?)" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 1px solid #d1d1d6; border-radius: 6px;">
+      <input type="text" id="auth-display-name" maxlength="50" placeholder="Отображаемое имя (как вас называть?)" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 1px solid #d1d1d6; border-radius: 6px;">
       <p style="font-size: 11px; color: #6e6e73; margin-top: 0; margin-bottom: 8px;">Email нигде не отображается и нужен только для входа.</p>
     </div>
     <div id="auth-error" style="color: #d70015; font-size: 12px; margin-bottom: 8px; display: none;"></div>
@@ -137,7 +137,7 @@
     <h2>Настройки профиля</h2>
     
     <label style="font-size: 13px; font-weight: bold; margin-bottom: 4px; display: block;">Отображаемое имя</label>
-    <input type="text" id="prof-name" style="width: 100%; padding: 10px; margin-bottom: 4px; border: 1px solid #d1d1d6; border-radius: 6px;">
+    <input type="text" id="prof-name" maxlength="50" style="width: 100%; padding: 10px; margin-bottom: 4px; border: 1px solid #d1d1d6; border-radius: 6px;">
     <div id="name-error" style="color: #d70015; font-size: 12px; margin-bottom: 12px; display: none;"></div>
 
     <label style="font-size: 13px; font-weight: bold; margin-bottom: 4px; display: block;">Сменить пароль (оставьте пустым, если не хотите менять)</label>
