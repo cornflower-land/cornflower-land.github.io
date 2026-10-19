@@ -79,6 +79,7 @@
 
 <div class="auth-bar" id="auth-bar">
   <div id="user-info" style="display: none;">
+    <img id="user-avatar-top" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; display: none; margin-right: 8px; vertical-align: middle;">
     <span id="user-name-display">Участник</span>
     <button id="profileBtn" style="margin-right: 10px;">Настройки</button>
     <button id="logoutBtn">Выйти</button>
@@ -229,8 +230,16 @@ async function init() {
   currentUser = session ? session.user : null;
 
   if (currentUser) {
-    const { data: profile } = await supabaseClient.from('profiles').select('display_name, role').eq('id', currentUser.id).single();
+    const { data: profile } = await supabaseClient.from('profiles').select('display_name, role, avatar_url').eq('id', currentUser.id).single();
     document.getElementById('user-name-display').textContent = profile?.display_name || 'Участник';
+    
+    const topAvatar = document.getElementById('user-avatar-top');
+    if (profile?.avatar_url) {
+      topAvatar.src = profile.avatar_url;
+      topAvatar.style.display = 'inline-block';
+    } else {
+      topAvatar.style.display = 'none';
+    }
     document.getElementById('user-info').style.display = 'block';
     document.getElementById('loginBtn').style.display = 'none';
       currentUserRole = profile?.role || 'user';
