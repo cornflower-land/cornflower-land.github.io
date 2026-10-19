@@ -692,6 +692,12 @@ function calculate() {
   `);
 }
 
+function showResult(html) {
+  const r = document.getElementById('result');
+  r.innerHTML = html;
+  r.classList.add('show');
+}
+
 // ---------- Авторизация (обработчик кнопки Войти) ----------
 document.getElementById('auth-submit').addEventListener('click', async () => {
   const email = document.getElementById('auth-email').value;
