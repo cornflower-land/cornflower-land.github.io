@@ -198,6 +198,11 @@
   <button id="joinLeaveBtn" class="primary" style="display: none;">Присоединиться к участникам</button>
   <button id="refreshBtn">Обновить данные</button>
   <button id="calculate">Рассчитать лучшее время</button>
+  <select id="calc-duration" style="padding: 8px; border-radius: 8px; border: 1px solid #d1d1d6; font-family: inherit; font-size: 14px;">
+    <option value="4">Ищу 4 часа</option>
+    <option value="3">Ищу 3 часа</option>
+    <option value="2">Ищу 2 часа</option>
+  </select>
   
 </div>
 
@@ -620,33 +625,35 @@ function calculate() {
     return showResult('<h2>Нет участников</h2><div class="details">В этой группе еще нет участников.</div>');
   }
 
-  // Очищаем старые выделения
+  // Получаем выбранную длительность (4, 3 или 2 часа)
+  const targetDuration = parseInt(document.getElementById('calc-duration').value);
+  const BLOCK_SIZE = targetDuration; // Переопределяем размер блока для этого расчета
+
   document.querySelectorAll('.slot-bar.best, .slot-bar.busy-best').forEach(c => c.classList.remove('best', 'busy-best'));
 
   let best = null;
   
-  // Перебираем все возможные дни и часы начала 4-часового блока
+  // Перебираем все возможные дни и часы начала блока
   for (let di = 0; di < NUM_DAYS; di++) {
     for (let hi = 0; hi <= HOURS.length - BLOCK_SIZE; hi++) {
       let blockValid = true;
       
-      // Проверяем, свободно ли само помещение на эти 4 часа
+      // Проверяем, свободно ли помещение
       for (let k = 0; k < BLOCK_SIZE; k++) {
         const dStr = dateKey(days[di]);
         const h = HOURS[hi + k];
         const vBlock = venueBookings.find(b => b.date === dStr && b.hour === h);
         const gBlock = groupBookings.find(b => b.date === dStr && b.hour === h);
         
-        // Если аренда или бронь ДРУГОЙ группы, то блок не подходит
         if (vBlock || (gBlock && gBlock.group_id !== GROUP_ID)) {
           blockValid = false;
           break;
         }
       }
 
-      if (!blockValid) continue; // Пропускаем занятое время
+      if (!blockValid) continue;
 
-      // Считаем, сколько участников свободно в этом блоке
+      // Считаем, сколько участников полностью свободны в этом блоке
       let count = 0;
       for (const p of participants) {
         const avail = p.availability[dateKey(days[di])] || [];
@@ -657,18 +664,17 @@ function calculate() {
         if (free) count++;
       }
 
-      // Если это лучший результат - запоминаем
       if (!best || count > best.count) {
-        best = { day: di, hour: hi, count };
+        best = { day: di, hour: hi, count: count };
       }
     }
   }
 
   if (!best || best.count === 0) {
-    return showResult('<h2>Нет общего времени</h2><div class="details">Пока нет ни одного 4-часового окна, свободного для участников (с учетом броней помещения).</div>');
+    return showResult('<h2>Нет общего времени</h2><div class="details">Пока нет ни одного окна выбранной длительности, свободного для участников (с учетом броней).</div>');
   }
 
-  // Подсвечиваем лучший результат
+  // Подсвечиваем лучший результат на сетке
   for (let k = 0; k < BLOCK_SIZE; k++) {
     const hi = best.hour + k;
     participants.forEach((p, pi) => {
@@ -685,31 +691,62 @@ function calculate() {
   const day = days[best.day];
   const startH = HOURS[best.hour];
   const endH = HOURS[best.hour] + BLOCK_SIZE;
-  const total = participants.length;
+  
+  let fullInfo = [];
+  let partialInfo = [];
 
-  // Выясняем, кто не сможет прийти
-  let unavailableNames = [];
+  // Анализируем, кто свободен полностью, а кто частично
   participants.forEach(p => {
     const avail = p.availability[dateKey(day)] || [];
-    let free = true;
+    let freeCount = 0;
+    let firstFreeIdx = -1;
+    let lastFreeIdx = -1;
+
     for (let k = 0; k < BLOCK_SIZE; k++) {
-      if (!avail[best.hour + k]) { free = false; break; }
+      if (avail[best.hour + k]) {
+        freeCount++;
+        if (firstFreeIdx === -1) firstFreeIdx = k;
+        lastFreeIdx = k;
+      }
     }
-    if (!free) unavailableNames.push(p.name);
+
+    if (freeCount === BLOCK_SIZE) {
+      fullInfo.push(p.name);
+    } else if (freeCount > 0) {
+      // Человек свободен частично. Считаем опоздания/ранний уход.
+      let lateHours = firstFreeIdx;
+      let earlyHours = (BLOCK_SIZE - 1) - lastFreeIdx;
+      
+      let desc = `${p.name} (сможет ${freeCount} ч.`;
+      if (lateHours > 0 && earlyHours > 0) desc += `, опоздает на ${lateHours} ч. и уйдет раньше на ${earlyHours} ч.)`;
+      else if (lateHours > 0) desc += `, опоздает на ${lateHours} ч.)`;
+      else if (earlyHours > 0) desc += `, уйдет раньше на ${earlyHours} ч.)`;
+      else desc += `)`;
+      
+      partialInfo.push(desc);
+    }
   });
 
-  let unavailableHtml = '';
-  if (unavailableNames.length > 0) {
-    unavailableHtml = `<div class="details" style="color: #d70015; margin-top: 8px; font-weight: 500;">Не смогут прийти: ${unavailableNames.join(', ')}</div>`;
+  let partialHtml = '';
+  if (partialInfo.length > 0) {
+    partialHtml = `<div class="details" style="color: #ff9500; margin-top: 8px;">Частично свободны: ${partialInfo.join('; ')}</div>`;
+  }
+
+  let fullHtml = '';
+  if (fullInfo.length === 0) {
+    fullHtml = `<div class="details" style="color: #d70015; margin-top: 8px;">Никто не сможет присутствовать всё время.</div>`;
+  } else if (fullInfo.length === participants.length) {
+    fullHtml = `<div class="details" style="color: #34c759; margin-top: 8px;">Придут все!</div>`;
   } else {
-    unavailableHtml = `<div class="details" style="color: #34c759; margin-top: 8px; font-weight: 500;">Придут все!</div>`;
+    fullHtml = `<div class="details" style="color: #1d1d1f; margin-top: 8px;">Полностью свободны: ${fullInfo.join(', ')}</div>`;
   }
 
   showResult(`
     <h2>Лучшее время</h2>
     <div class="best-time">${formatDay(day)}, ${formatHour(startH)}–${formatHour(endH)}</div>
-    <div class="details">Свободны ${best.count} из ${total} ${plural(total, 'участника', 'участников', 'участников')}.</div>
-    ${unavailableHtml}
+    <div class="details">Полностью совпадает время у ${best.count} из ${participants.length} участников.</div>
+    ${fullHtml}
+    ${partialHtml}
   `);
 }
 
