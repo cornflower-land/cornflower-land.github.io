@@ -121,8 +121,32 @@
   .legend-swatch.best { background: #0071e3; border-color: #0071e3; }
   .legend-swatch.busy-best { background: #ff3b30; border-color: #ff3b30; }
 </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+
+<div id="auth-container" style="position: absolute; top: 20px; right: 20px; text-align: right;">
+  <div id="user-info" style="display: none; margin-bottom: 8px;">
+    <span style="font-size: 14px; color: #1d1d1f;">Вы вошли как: <b id="user-email-display"></b></span>
+    <button id="logoutBtn" style="margin-left: 10px; padding: 4px 8px; font-size: 12px;">Выйти</button>
+  </div>
+  <button id="loginBtn" class="primary" style="padding: 6px 12px; font-size: 13px;">Войти / Регистрация</button>
+</div>
+
+<div id="auth-modal" class="modal hidden" style="z-index: 200;">
+  <div class="modal-content" style="max-width: 350px;">
+    <h2>Вход в систему</h2>
+    <p style="font-size: 13px; color: #6e6e73; margin-top: 0;">Введите email и пароль. Если аккаунта нет, он создастся автоматически.</p>
+    <input type="email" id="auth-email" placeholder="Email" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 1px solid #d1d1d6; border-radius: 6px;">
+    <input type="password" id="auth-password" placeholder="Пароль" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 1px solid #d1d1d6; border-radius: 6px;">
+    <div id="auth-error" style="color: #d70015; font-size: 12px; margin-bottom: 8px; display: none;"></div>
+    <div class="modal-buttons" style="justify-content: space-between;">
+      <button id="auth-cancel" style="background: none; border: none; color: #0071e3; padding: 0;">Отмена</button>
+      <button id="auth-submit" class="primary">Войти</button>
+    </div>
+  </div>
+</div>
+
 
 <h1>Расписание литературного клуба</h1>
 <p class="subtitle">Отметьте часы, когда вы свободны. Минимальная длительность встречи — 4 часа.</p>
@@ -135,9 +159,10 @@
 </div>
 
 <div class="toolbar">
-  <button id="addParticipant" class="primary">+ Добавить участника</button>
+  
+  <button id="refreshBtn">Обновить данные</button>
   <button id="calculate">Рассчитать лучшее время</button>
-  <button id="clearBtn" class="danger">Очистить всё</button>
+  
 </div>
 
 <div id="result"></div>
@@ -247,7 +272,10 @@ function renderGrid() {
   }
 
   participants.forEach((p, pi) => {
+    const isMe = currentUser && p.id === currentUser.id;
     const tr = document.createElement('tr');
+    if (!isMe) tr.style.opacity = '0.6'; // Чужие строки полупрозрачные
+
 
     // Ячейка с именем
     const nameTd = document.createElement('td');
@@ -257,24 +285,14 @@ function renderGrid() {
     input.type = 'text';
     input.placeholder = 'Имя';
     input.value = p.name;
+    input.disabled = !isMe;
     input.addEventListener('input', e => {
       participants[pi].name = e.target.value;
       save();
     });
     nameTd.appendChild(input);
 
-    const del = document.createElement('button');
-    del.className = 'delete-btn';
-    del.textContent = '×';
-    del.title = 'Удалить участника';
-    del.addEventListener('click', () => {
-      if (confirm(`Удалить участника "${p.name || 'без имени'}"?`)) {
-        participants.splice(pi, 1);
-        save(); renderGrid();
-        document.getElementById('result').classList.remove('show');
-      }
-    });
-    nameTd.appendChild(del);
+    
     tr.appendChild(nameTd);
 
     // Ячейки с днями
@@ -302,6 +320,7 @@ function renderGrid() {
         if (p.availability[key][hi]) bar.classList.add('free');
         
         bar.dataset.pi = pi;
+        if (!isMe) { bar.style.pointerEvents = 'none'; }
         bar.dataset.di = di;
         bar.dataset.hi = hi;
 
@@ -437,29 +456,147 @@ function load() {
   } catch (e) { return false; }
 }
 
-function clearAll() {
-  if (!confirm('Удалить всех участников и все отметки?')) return;
-  participants = [];
-  save(); renderGrid();
-  document.getElementById('result').classList.remove('show');
-}
+async function clearAll() { await supabaseClient.auth.signOut(); window.location.reload(); }
 
 // ---------- экспорт / импорт ----------
+
+
+
+// ---------- Supabase Инициализация ----------
+const SUPABASE_URL = 'https://xzawwrmyrlihodrowxji.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6YXd3cm15cmxpaG9kcm93eGppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIzNjQ5NzksImV4cCI6MjEwNzk0MDk3OX0.cS5G7e-pJ6eX68w07JhW2ZcWESPRyZb3Mrn-cKP0yyA';
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let currentUser = null;
+
+// ---------- Авторизация ----------
+const authModal = document.getElementById('auth-modal');
+const loginBtn = document.getElementById('loginBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const userInfo = document.getElementById('user-info');
+const userEmailDisplay = document.getElementById('user-email-display');
+const authError = document.getElementById('auth-error');
+
+loginBtn.addEventListener('click', () => {
+  authModal.classList.remove('hidden');
+  document.getElementById('auth-email').focus();
+});
+document.getElementById('auth-cancel').addEventListener('click', () => {
+  authModal.classList.add('hidden');
+  authError.style.display = 'none';
+});
+
+document.getElementById('auth-submit').addEventListener('click', async () => {
+  const email = document.getElementById('auth-email').value;
+  const password = document.getElementById('auth-password').value;
+  authError.style.display = 'none';
+
+  if (!email || !password) {
+    authError.textContent = 'Заполните email и пароль';
+    authError.style.display = 'block';
+    return;
+  }
+
+  // Пытаемся войти
+  let { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+  // Если пользователя нет, регистрируем
+  if (error && error.message.includes('Invalid login credentials')) {
+    const { data: signUpData, error: signUpError } = await supabaseClient.auth.signUp({ email, password });
+    if (signUpError) {
+      authError.textContent = signUpError.message;
+      authError.style.display = 'block';
+    } else {
+      if (signUpData.user && !signUpData.session) {
+        alert('Регистрация успешна. Проверьте почту для подтверждения (если включено в Supabase).');
+      } else {
+        // Если сессия выдана сразу (Email Confirm выключен)
+        window.location.reload();
+      }
+    }
+  } else if (error) {
+    authError.textContent = error.message;
+    authError.style.display = 'block';
+  } else {
+    window.location.reload();
+  }
+});
+
+logoutBtn.addEventListener('click', async () => {
+  await supabaseClient.auth.signOut();
+  window.location.reload();
+});
+
+// ---------- Загрузка данных из БД ----------
+async function loadFromDB() {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  currentUser = session ? session.user : null;
+
+  if (currentUser) {
+    userInfo.style.display = 'block';
+    loginBtn.style.display = 'none';
+    userEmailDisplay.textContent = currentUser.email;
+  } else {
+    userInfo.style.display = 'none';
+    loginBtn.style.display = 'block';
+  }
+
+  const { data, error } = await supabaseClient.from('schedules').select('*');
+  if (error) {
+    console.error("Ошибка загрузки:", error);
+    return;
+  }
+
+  // Преобразуем данные из БД в формат нашего массива participants
+  participants = data.map(row => ({
+    id: row.user_id,
+    name: row.name || '',
+    availability: row.availability || {}
+  }));
+
+  // Сортируем, чтобы своя строка была сверху (опционально)
+  if (currentUser) {
+    participants.sort((a, b) => {
+      if (a.id === currentUser.id) return -1;
+      if (b.id === currentUser.id) return 1;
+      return 0;
+    });
+  }
+
+  renderGrid();
+}
+
+// ---------- Сохранение в БД ----------
+async function save() {
+  if (!currentUser) return; // Сохраняем только если вошли
+
+  // Находим свою строку
+  const myRow = participants.find(p => p.id === currentUser.id);
+  if (!myRow) return;
+
+  const { error } = await supabaseClient.from('schedules').upsert({
+    user_id: currentUser.id,
+    name: myRow.name,
+    availability: myRow.availability,
+    updated_at: new Date()
+  });
+
+  if (error) console.error("Ошибка сохранения:", error);
+}
 
 
 // ---------- события и запуск ----------
 document.getElementById('addParticipant').addEventListener('click', () => {
   participants.push(createParticipant());
-  save(); renderGrid();
+  await save(); renderGrid();
   const inputs = document.querySelectorAll('td.name-cell input');
   if (inputs.length) inputs[inputs.length - 1].focus();
 });
 document.getElementById('calculate').addEventListener('click', calculate);
+ document.getElementById('refreshBtn').addEventListener('click', loadFromDB);
 document.getElementById('clearBtn').addEventListener('click', clearAll);
 
 initDays();
-load();
-renderGrid();
+loadFromDB();
 </script>
 
 </body>
