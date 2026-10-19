@@ -45,7 +45,10 @@
   <button id="loginBtn" class="primary">Войти / Регистрация</button>
 </div>
 
-<h1>Группы клуба</h1>
+<div style="display: flex; justify-content: space-between; align-items: center;">
+  <h1>Группы клуба</h1>
+  <button id="createGroupBtn" class="primary" style="display: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; border: none;">+ Создать группу</button>
+</div>
 <div id="groups-container" class="groups-grid">
   <div class="empty-msg">Загрузка...</div>
 </div>
@@ -73,6 +76,19 @@
   </div>
 </div>
 
+
+<div id="group-modal" class="modal hidden">
+  <div class="modal-content">
+    <h2>Новая группа</h2>
+    <input type="text" id="new-group-name" placeholder="Название группы" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 1px solid #d1d1d6; border-radius: 6px;">
+    <div id="group-error" style="color: #d70015; font-size: 12px; margin-bottom: 8px; display: none;"></div>
+    <div class="modal-buttons">
+      <button id="group-cancel" style="border: none; color: #0071e3; background: none; padding: 0;">Отмена</button>
+      <button id="group-submit" class="primary">Создать</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://xzawwrmyrlihodrowxji.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6YXd3cm15cmxpaG9kcm93eGppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIzNjQ5NzksImV4cCI6MjEwNzk0MDk3OX0.cS5G7e-pJ6eX68w07JhW2ZcWESPRyZb3Mrn-cKP0yyA';
@@ -89,10 +105,14 @@ async function init() {
   currentUser = session ? session.user : null;
 
   if (currentUser) {
-    const { data: profile } = await supabaseClient.from('profiles').select('display_name').eq('id', currentUser.id).single();
+    const { data: profile } = await supabaseClient.from('profiles').select('display_name, role').eq('id', currentUser.id).single();
     document.getElementById('user-name-display').textContent = profile?.display_name || 'Участник';
     document.getElementById('user-info').style.display = 'block';
     document.getElementById('loginBtn').style.display = 'none';
+    
+    if (profile?.role === 'admin') {
+      document.getElementById('createGroupBtn').style.display = 'block';
+    }
   } else {
     document.getElementById('user-info').style.display = 'none';
     document.getElementById('loginBtn').style.display = 'block';
@@ -173,6 +193,41 @@ document.getElementById('auth-submit').addEventListener('click', async () => {
 document.getElementById('logoutBtn').addEventListener('click', async () => {
   await supabaseClient.auth.signOut();
   window.location.reload();
+});
+
+
+// ---------- Управление группами (Админ) ----------
+const groupModal = document.getElementById('group-modal');
+const groupError = document.getElementById('group-error');
+
+document.getElementById('createGroupBtn').addEventListener('click', () => {
+  groupModal.classList.remove('hidden');
+  document.getElementById('new-group-name').focus();
+});
+
+document.getElementById('group-cancel').addEventListener('click', () => {
+  groupModal.classList.add('hidden');
+  groupError.style.display = 'none';
+});
+
+document.getElementById('group-submit').addEventListener('click', async () => {
+  const name = document.getElementById('new-group-name').value.trim();
+  if (!name) {
+    groupError.textContent = 'Введите название';
+    groupError.style.display = 'block';
+    return;
+  }
+
+  const { error } = await supabaseClient.from('groups').insert({ name });
+  
+  if (error) {
+    groupError.textContent = error.message;
+    groupError.style.display = 'block';
+  } else {
+    groupModal.classList.add('hidden');
+    document.getElementById('new-group-name').value = '';
+    loadGroups(); // Перезагружаем список
+  }
 });
 
 async function loadGroups() {
