@@ -625,20 +625,19 @@ function calculate() {
     return showResult('<h2>Нет участников</h2><div class="details">В этой группе еще нет участников.</div>');
   }
 
-  // Получаем выбранную длительность (4, 3 или 2 часа)
   const targetDuration = parseInt(document.getElementById('calc-duration').value);
-  const BLOCK_SIZE = targetDuration; // Переопределяем размер блока для этого расчета
+  const BLOCK_SIZE = targetDuration;
 
   document.querySelectorAll('.slot-bar.best, .slot-bar.busy-best').forEach(c => c.classList.remove('best', 'busy-best'));
 
   let best = null;
   
-  // Перебираем все возможные дни и часы начала блока
+  // Перебираем все дни и часы начала блока
   for (let di = 0; di < NUM_DAYS; di++) {
     for (let hi = 0; hi <= HOURS.length - BLOCK_SIZE; hi++) {
       let blockValid = true;
       
-      // Проверяем, свободно ли помещение
+      // Проверяем помещение
       for (let k = 0; k < BLOCK_SIZE; k++) {
         const dStr = dateKey(days[di]);
         const h = HOURS[hi + k];
@@ -653,28 +652,33 @@ function calculate() {
 
       if (!blockValid) continue;
 
-      // Считаем, сколько участников полностью свободны в этом блоке
-      let count = 0;
+      let fullCount = 0;       // Сколько человек свободны ВСЁ время
+      let totalFreeSlots = 0;  // Суммарное количество часов всех участников (для оценки "частичности")
+
       for (const p of participants) {
         const avail = p.availability[dateKey(days[di])] || [];
-        let free = true;
+        let freeInWindow = 0;
         for (let k = 0; k < BLOCK_SIZE; k++) {
-          if (!avail[hi + k]) { free = false; break; }
+          if (avail[hi + k]) freeInWindow++;
         }
-        if (free) count++;
+        if (freeInWindow === BLOCK_SIZE) fullCount++;
+        totalFreeSlots += freeInWindow;
       }
 
-      if (!best || count > best.count) {
-        best = { day: di, hour: hi, count: count };
+      // Умный выбор лучшего времени:
+      // 1. Приоритет: максимум людей полностью свободны.
+      // 2. Тай-брейкер: максимум суммарных часов (чтобы минимизировать опоздания).
+      if (!best || fullCount > best.fullCount || (fullCount === best.fullCount && totalFreeSlots > best.totalFreeSlots)) {
+        best = { day: di, hour: hi, fullCount: fullCount, totalFreeSlots: totalFreeSlots };
       }
     }
   }
 
-  if (!best || best.count === 0) {
-    return showResult('<h2>Нет общего времени</h2><div class="details">Пока нет ни одного окна выбранной длительности, свободного для участников (с учетом броней).</div>');
+  if (!best) {
+    return showResult('<h2>Нет времени</h2><div class="details">Не удалось найти подходящее окно.</div>');
   }
 
-  // Подсвечиваем лучший результат на сетке
+  // Подсвечиваем лучший результат
   for (let k = 0; k < BLOCK_SIZE; k++) {
     const hi = best.hour + k;
     participants.forEach((p, pi) => {
@@ -695,34 +699,50 @@ function calculate() {
   let fullInfo = [];
   let partialInfo = [];
 
-  // Анализируем, кто свободен полностью, а кто частично
+  // Анализируем каждого участника
   participants.forEach(p => {
     const avail = p.availability[dateKey(day)] || [];
     let freeCount = 0;
-    let firstFreeIdx = -1;
-    let lastFreeIdx = -1;
+    let lateHours = 0;
+    let earlyHours = 0;
 
+    // Считаем опоздания
     for (let k = 0; k < BLOCK_SIZE; k++) {
       if (avail[best.hour + k]) {
         freeCount++;
-        if (firstFreeIdx === -1) firstFreeIdx = k;
-        lastFreeIdx = k;
+        break; // Нашли первый свободный час
       }
+      lateHours++;
     }
 
-    if (freeCount === BLOCK_SIZE) {
+    // Считаем ранний уход (ищем с конца)
+    for (let k = BLOCK_SIZE - 1; k >= 0; k--) {
+      if (avail[best.hour + k]) {
+        break;
+      }
+      earlyHours++;
+    }
+
+    // Защита от двойного счета, если человек вообще не придет
+    if (freeCount === 0) {
+       partialInfo.push(`${p.name} (не сможет)`);
+       return;
+    }
+
+    // На самом деле считаем, сколько он пробудет
+    let actualFree = 0;
+    for (let k = 0; k < BLOCK_SIZE; k++) {
+        if (avail[best.hour + k]) actualFree++;
+    }
+
+    if (actualFree === BLOCK_SIZE) {
       fullInfo.push(p.name);
-    } else if (freeCount > 0) {
-      // Человек свободен частично. Считаем опоздания/ранний уход.
-      let lateHours = firstFreeIdx;
-      let earlyHours = (BLOCK_SIZE - 1) - lastFreeIdx;
-      
-      let desc = `${p.name} (сможет ${freeCount} ч.`;
+    } else {
+      let desc = `${p.name} (сможет ${actualFree} ч.`;
       if (lateHours > 0 && earlyHours > 0) desc += `, опоздает на ${lateHours} ч. и уйдет раньше на ${earlyHours} ч.)`;
       else if (lateHours > 0) desc += `, опоздает на ${lateHours} ч.)`;
       else if (earlyHours > 0) desc += `, уйдет раньше на ${earlyHours} ч.)`;
       else desc += `)`;
-      
       partialInfo.push(desc);
     }
   });
@@ -744,7 +764,7 @@ function calculate() {
   showResult(`
     <h2>Лучшее время</h2>
     <div class="best-time">${formatDay(day)}, ${formatHour(startH)}–${formatHour(endH)}</div>
-    <div class="details">Полностью совпадает время у ${best.count} из ${participants.length} участников.</div>
+    <div class="details">Полностью совпадает время у ${best.fullCount} из ${participants.length} участников.</div>
     ${fullHtml}
     ${partialHtml}
   `);
