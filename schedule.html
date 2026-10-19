@@ -621,17 +621,21 @@ async function loadFromDB() {
       loginBtn.style.display = 'block';
     }
 
-    // Получаем расписания
-    const { data: profile } = await supabaseClient.from('profiles').select('role').eq('id', currentUser.id).single();
+    // Безопасно получаем роль и данные о бронированиях
+    if (currentUser) {
+      const { data: profile } = await supabaseClient.from('profiles').select('role').eq('id', currentUser.id).single();
       currentUserRole = profile?.role || 'user';
+    } else {
+      currentUserRole = 'user';
+    }
 
-      const { data: vData } = await supabaseClient.from('venue_blocks').select('*');
-      venueBookings = vData || [];
+    const { data: vData } = await supabaseClient.from('venue_blocks').select('*');
+    venueBookings = vData || [];
 
-      const { data: gData } = await supabaseClient.from('group_bookings').select('*');
-      groupBookings = gData || [];
+    const { data: gData } = await supabaseClient.from('group_bookings').select('*');
+    groupBookings = gData || [];
 
-      const { data, error } = await supabaseClient.from('schedules').select('*').eq('group_id', GROUP_ID);
+    const { data, error } = await supabaseClient.from('schedules').select('*').eq('group_id', GROUP_ID);
     if (error) {
       console.error("Ошибка загрузки:", error);
     } else if (data) {
@@ -696,6 +700,23 @@ async function save() {
       }
     }
 
+
+
+document.getElementById('tab-login').addEventListener('click', () => {
+  isRegisterMode = false;
+  document.getElementById('tab-login').className = 'primary';
+  document.getElementById('tab-register').className = '';
+  document.getElementById('name-wrapper').style.display = 'none';
+  document.getElementById('auth-hint').textContent = 'Введите email и пароль, чтобы войти.';
+});
+
+document.getElementById('tab-register').addEventListener('click', () => {
+  isRegisterMode = true;
+  document.getElementById('tab-login').className = '';
+  document.getElementById('tab-register').className = 'primary';
+  document.getElementById('name-wrapper').style.display = 'block';
+  document.getElementById('auth-hint').textContent = 'Создайте аккаунт, чтобы видеть расписание.';
+});
 
 // ---------- события и запуск ----------
 
