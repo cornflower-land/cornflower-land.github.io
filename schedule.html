@@ -1056,7 +1056,7 @@ async function loadFromDB() {
       participants = data.map(row => ({
         id: row.user_id,
         name: profileMap[row.user_id]?.name || 'Участник',
-        avatar_url: profileMap[row.user_id]?.avatar
+        avatar_url: profileMap[row.user_id]?.avatar,
         availability: row.availability || {}
       }));
     }
