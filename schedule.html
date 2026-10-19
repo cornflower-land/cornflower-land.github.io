@@ -208,12 +208,14 @@
   <div class="legend-item"><div class="legend-swatch"></div>Занят / не отмечено</div>
   <div class="legend-item"><div class="legend-swatch best"></div>Лучшее время</div>
   <div class="legend-item"><div class="legend-swatch busy-best"></div>Не сможет прийти</div>
+  <div class="legend-item"><div class="legend-swatch" style="background-color: #8e8e93; border-color: #8e8e93;"></div>Помещение недоступно</div>
+  <div class="legend-item"><div class="legend-swatch" style="background-color: #af52de; border-color: #af52de;"></div>Бронь группы</div>
 </div>
 
 
 <div id="admin-tools">
   <span style="font-weight: bold; margin-right: 10px;">Инструменты:</span>
-  <button class="tool-btn venue" data-tool="venue">Аренда</button>
+  <button class="tool-btn venue" data-tool="venue">Недоступно</button>
   <button class="tool-btn group" data-tool="group">Бронь группы</button>
   <select id="booking-group-select" style="padding: 6px; border-radius: 6px; border: 1px solid #d1d1d6; display: none;"></select>
   <button class="tool-btn clear" data-tool="clear">Ластик</button>
@@ -685,10 +687,29 @@ function calculate() {
   const endH = HOURS[best.hour] + BLOCK_SIZE;
   const total = participants.length;
 
+  // Выясняем, кто не сможет прийти
+  let unavailableNames = [];
+  participants.forEach(p => {
+    const avail = p.availability[dateKey(day)] || [];
+    let free = true;
+    for (let k = 0; k < BLOCK_SIZE; k++) {
+      if (!avail[best.hour + k]) { free = false; break; }
+    }
+    if (!free) unavailableNames.push(p.name);
+  });
+
+  let unavailableHtml = '';
+  if (unavailableNames.length > 0) {
+    unavailableHtml = `<div class="details" style="color: #d70015; margin-top: 8px; font-weight: 500;">Не смогут прийти: ${unavailableNames.join(', ')}</div>`;
+  } else {
+    unavailableHtml = `<div class="details" style="color: #34c759; margin-top: 8px; font-weight: 500;">Придут все!</div>`;
+  }
+
   showResult(`
     <h2>Лучшее время</h2>
     <div class="best-time">${formatDay(day)}, ${formatHour(startH)}–${formatHour(endH)}</div>
     <div class="details">Свободны ${best.count} из ${total} ${plural(total, 'участника', 'участников', 'участников')}.</div>
+    ${unavailableHtml}
   `);
 }
 
