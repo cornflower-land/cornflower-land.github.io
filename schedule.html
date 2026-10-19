@@ -401,7 +401,7 @@ function renderGrid() {
     if (toolbar) toolbar.style.display = 'flex';
   }
 
-  const adminTools = document.getElementById('admin-tools');
+  // Управление панелью админа (БЕЗ дублирующего const)
   if (currentUserRole === 'admin') {
     adminTools.style.display = 'flex';
     const select = document.getElementById('booking-group-select');
@@ -576,6 +576,7 @@ function renderGrid() {
     tbody.appendChild(tr);
   });
 }
+
 
 // Логика применения кисти
 function applyTool(dateStr, hour) {
