@@ -66,8 +66,14 @@
   .group-actions button:hover { background: #f0f0f5; }
   .group-actions .edit-btn { color: #0071e3; }
   .group-actions .delete-btn { color: #d70015; }
+
+  /* Стили для Drag & Drop */
+  .group-card-wrapper { cursor: grab; }
+  .group-card-wrapper:active { cursor: grabbing; }
+  .sortable-ghost { opacity: 0.4; background-color: #e8f1fd; border: 2px dashed #0071e3; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
 <body>
 
@@ -374,7 +380,8 @@ async function loadGroups() {
   const container = document.getElementById('groups-container');
   container.innerHTML = '';
 
-  const { data, error } = await supabaseClient.from('groups').select('*').order('created_at', { ascending: true });
+  // Сортируем по новому полю sort_order
+  const { data, error } = await supabaseClient.from('groups').select('*').order('sort_order', { ascending: true });
   
   if (error) {
     container.innerHTML = `<div class="empty-msg" style="color: #d70015;">Ошибка загрузки: ${error.message}</div>`;
@@ -389,6 +396,7 @@ async function loadGroups() {
   data.forEach(group => {
     const wrapper = document.createElement('div');
     wrapper.className = 'group-card-wrapper';
+    wrapper.dataset.id = group.id; // Сохраняем ID для сохранения порядка
 
     const a = document.createElement('a');
     a.href = `schedule.html?group=${group.id}`;
@@ -436,6 +444,24 @@ async function loadGroups() {
 
     container.appendChild(wrapper);
   });
+
+  // Инициализируем Drag & Drop только для админов
+  if (currentUserRole === 'admin') {
+    new Sortable(container, {
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+      onEnd: async function (evt) {
+        // Получаем все карточки в новом порядке
+        const items = container.querySelectorAll('.group-card-wrapper');
+        
+        // Обновляем каждую группу в базе (присваиваем новый индекс)
+        for (let i = 0; i < items.length; i++) {
+          const id = items[i].dataset.id;
+          await supabaseClient.from('groups').update({ sort_order: i }).eq('id', id);
+        }
+      }
+    });
+  }
 }
 
 // ---------- Переименование группы ----------
