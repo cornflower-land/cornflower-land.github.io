@@ -718,6 +718,43 @@ document.getElementById('tab-register').addEventListener('click', () => {
   document.getElementById('auth-hint').textContent = 'Создайте аккаунт, чтобы видеть расписание.';
 });
 
+
+// ---------- Логика бронирования ----------
+const bookingModal = document.getElementById('booking-modal');
+
+window.openBookingModal = function(dateStr, hour) {
+  bookingTarget = { date: dateStr, hour: hour };
+  bookingModal.classList.remove('hidden');
+};
+
+document.getElementById('booking-cancel').addEventListener('click', () => {
+  bookingModal.classList.add('hidden');
+});
+
+document.getElementById('btn-venue').addEventListener('click', async () => {
+  await supabaseClient.from('group_bookings').delete().eq('date', bookingTarget.date).eq('hour', bookingTarget.hour);
+  await supabaseClient.from('venue_blocks').delete().eq('date', bookingTarget.date).eq('hour', bookingTarget.hour);
+  await supabaseClient.from('venue_blocks').insert({ date: bookingTarget.date, hour: bookingTarget.hour });
+  bookingModal.classList.add('hidden');
+  loadFromDB();
+});
+
+document.getElementById('btn-group').addEventListener('click', async () => {
+  await supabaseClient.from('group_bookings').delete().eq('date', bookingTarget.date).eq('hour', bookingTarget.hour);
+  await supabaseClient.from('venue_blocks').delete().eq('date', bookingTarget.date).eq('hour', bookingTarget.hour);
+  await supabaseClient.from('group_bookings').insert({ group_id: GROUP_ID, date: bookingTarget.date, hour: bookingTarget.hour });
+  bookingModal.classList.add('hidden');
+  loadFromDB();
+});
+
+document.getElementById('btn-free').addEventListener('click', async () => {
+  await supabaseClient.from('group_bookings').delete().eq('date', bookingTarget.date).eq('hour', bookingTarget.hour);
+  await supabaseClient.from('venue_blocks').delete().eq('date', bookingTarget.date).eq('hour', bookingTarget.hour);
+  bookingModal.classList.add('hidden');
+  loadFromDB();
+});
+
+
 // ---------- события и запуск ----------
 
 loginBtn.addEventListener('click', () => {
