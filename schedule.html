@@ -949,8 +949,44 @@ logoutBtn.addEventListener('click', async () => {
   window.location.reload();
 });
 
+
+// ---------- Автоматическая очистка старых данных ----------
+async function cleanupOldData() {
+  const today = new Date();
+  const todayStr = dateKey(today);
+
+  try {
+    // 1. Удаляем старые брони помещения
+    await supabaseClient.from('venue_blocks').delete().lt('date', todayStr);
+    
+    // 2. Удаляем старые брони групп
+    await supabaseClient.from('group_bookings').delete().lt('date', todayStr);
+    
+    // 3. Очищаем старые даты в расписаниях участников
+    const { data: schedules } = await supabaseClient.from('schedules').select('*');
+    if (schedules) {
+      for (const row of schedules) {
+        let changed = false;
+        const newAvail = { ...row.availability };
+        for (const dateStr in newAvail) {
+          if (dateStr < todayStr) {
+            delete newAvail[dateStr];
+            changed = true;
+          }
+        }
+        if (changed) {
+          await supabaseClient.from('schedules').update({ availability: newAvail }).eq('user_id', row.user_id).eq('group_id', row.group_id);
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Ошибка при очистке старых данных:", e);
+  }
+}
+
 // ---------- Загрузка данных из БД ----------
 async function loadFromDB() {
+  cleanupOldData(); // Запускаем очистку в фоне
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
     currentUser = session ? session.user : null;
