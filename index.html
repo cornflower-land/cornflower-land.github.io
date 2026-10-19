@@ -44,13 +44,13 @@
     font-weight: 500; background: #f9f9fb; padding: 8px 4px; line-height: 1.4;
     white-space: normal;
   }
-  th.name-header { z-index: 20; 
+  th.name-header { z-index: 1; 
     min-width: 130px; text-align: left; padding-left: 8px;
-    position: sticky; left: 0; background: #f9f9fb; z-index: 2;
+     background: #f9f9fb; z-index: 2;
     border-right: 4px solid #8e8e93;
   }
-  td.name-cell { z-index: 10; 
-    position: sticky; left: 0; background: white; z-index: 1;
+  td.name-cell { z-index: 1; 
+     background: white; z-index: 1;
     border-right: 4px solid #8e8e93; vertical-align: top; padding: 8px;
   }
   td.name-cell input {
@@ -351,6 +351,7 @@ function renderGrid() {
           dragValue = !p.availability[key][hi];
           p.availability[key][hi] = dragValue;
           bar.classList.toggle('free', dragValue);
+          save();
         });
 
         bar.addEventListener('mouseenter', () => {
@@ -613,6 +614,7 @@ async function save() {
 
       if (error) {
         console.error("Ошибка сохранения:", error);
+        alert("Не удалось сохранить данные. Ошибка: " + error.message);
       }
     }
 
