@@ -130,8 +130,10 @@
     background-color: #af52de !important; 
     cursor: not-allowed; 
     color: white; 
-    font-size: 9px; 
+    font-size: 10px; 
     line-height: 1; 
+    white-space: nowrap; 
+    text-overflow: ellipsis; 
     text-align: center; 
     display: flex; 
     align-items: center; 
@@ -390,86 +392,9 @@ function renderGrid() {
         bar.className = 'slot-bar';
         bar.dataset.date = dateStr;
         bar.dataset.hour = h;
-        
-        const vBlock = venueBookings.find(b => b.date === dateStr && b.hour === h);
-        const gBlock = groupBookings.find(b => b.date === dateStr && b.hour === h);
-
-        if (vBlock) bar.classList.add('venue-block');
-        else if (gBlock) {
-          bar.classList.add('group-booked');
-          bar.textContent = gBlock.groups?.name ? gBlock.groups.name.substring(0, 3) : '';
-        }
-
-        bar.addEventListener('mousedown', (e) => {
-          if (!currentTool) return;
-          e.preventDefault();
-          isDrawing = true;
-          applyTool(dateStr, h);
-        });
-        bar.addEventListener('mouseenter', () => {
-          if (isDrawing) applyTool(dateStr, h);
-        });
-
-        slot.appendChild(bar);
-        dayCell.appendChild(slot);
-      });
-      td.appendChild(dayCell);
-      roomTr.appendChild(td);
-    });
-    tbody.appendChild(roomTr);
-  }
-
-  // --- СТРОКИ УЧАСТНИКОВ ---
-  if (participants.length === 0) {
-    const tr = document.createElement('tr');
-    const td = document.createElement('td');
-    td.colSpan = NUM_DAYS + 1;
-    td.style.padding = '20px';
-    td.style.textAlign = 'center';
-    td.style.color = '#6e6e73';
-    td.style.fontStyle = 'italic';
-    td.textContent = 'В этой группе еще нет участников';
-    tr.appendChild(td);
-    tbody.appendChild(tr);
-    return;
-  }
-
-  participants.forEach((p, pi) => {
-    const isMe = currentUser && p.id === currentUser.id;
-    const tr = document.createElement('tr');
-    if (!isMe) tr.style.opacity = '0.6';
-
-    const nameTd = document.createElement('td');
-    nameTd.className = 'name-cell';
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.value = p.name;
-    input.disabled = true;
-    nameTd.appendChild(input);
-    tr.appendChild(nameTd);
-
-    days.forEach((d, di) => {
-      const td = document.createElement('td');
-      const dayCell = document.createElement('div');
-      dayCell.className = 'day-cell';
-      const dateStr = dateKey(d);
-      if (!p.availability[dateStr]) p.availability[dateStr] = Array(HOURS.length).fill(false);
-
-      HOURS.forEach((h, hi) => {
-        const slot = document.createElement('div');
-        slot.className = 'hour-slot';
-
-        if (hi > 0) {
-          const label = document.createElement('span');
-          label.className = 'hour-label';
-          label.textContent = String(h).padStart(2, '0');
-          slot.appendChild(label);
-        }
-
-        const bar = document.createElement('div');
-        bar.className = 'slot-bar';
-        bar.dataset.date = dateStr;
-        bar.dataset.hour = h;
+        bar.dataset.pi = pi;
+        bar.dataset.di = di;
+        bar.dataset.hi = hi;
         
         const vBlock = venueBookings.find(b => b.date === dateStr && b.hour === h);
         const gBlock = groupBookings.find(b => b.date === dateStr && b.hour === h);
@@ -480,13 +405,11 @@ function renderGrid() {
         } else if (gBlock) {
           bar.classList.add('group-booked');
           bar.title = `Забронировано: ${gBlock.groups?.name || 'Группа'}`;
-          bar.textContent = gBlock.groups?.name ? gBlock.groups.name.substring(0, 3) : '';
+          bar.textContent = gBlock.groups?.name || '';
         } else {
           if (p.availability[dateStr][hi]) bar.classList.add('free');
           
-          bar.dataset.pi = pi;
-          bar.dataset.di = di;
-          bar.dataset.hi = hi;
+          
 
           if (isMe) {
             bar.addEventListener('mousedown', (e) => {
@@ -553,7 +476,7 @@ function applyTool(dateStr, hour) {
       bar.classList.add('group-booked');
       const gName = gBlock.groups?.name || 'Группа';
       bar.title = `Забронировано: ${gName}`;
-      bar.textContent = gName.substring(0, 3);
+      bar.textContent = gName.substring(0, 10);
     } else {
       // Восстанавливаем свободное время для участника (если это его ячейка)
       if (bar.dataset.pi !== undefined) {
@@ -615,16 +538,34 @@ function calculate() {
   if (participants.length === 0) {
     return showResult('<h2>Нет участников</h2><div class="details">В этой группе еще нет участников.</div>');
   }
-  const hasAny = participants.some(p =>
-    Object.values(p.availability).some(arr => arr.some(v => v))
-  );
-  if (!hasAny) {
-    return showResult('<h2>Нет данных</h2><div class="details">Пока никто не отметил свободное время.</div>');
-  }
+
+  // Очищаем старые выделения
+  document.querySelectorAll('.slot-bar.best, .slot-bar.busy-best').forEach(c => c.classList.remove('best', 'busy-best'));
 
   let best = null;
+  
+  // Перебираем все возможные дни и часы начала 4-часового блока
   for (let di = 0; di < NUM_DAYS; di++) {
     for (let hi = 0; hi <= HOURS.length - BLOCK_SIZE; hi++) {
+      let blockValid = true;
+      
+      // Проверяем, свободно ли само помещение на эти 4 часа
+      for (let k = 0; k < BLOCK_SIZE; k++) {
+        const dStr = dateKey(days[di]);
+        const h = HOURS[hi + k];
+        const vBlock = venueBookings.find(b => b.date === dStr && b.hour === h);
+        const gBlock = groupBookings.find(b => b.date === dStr && b.hour === h);
+        
+        // Если аренда или бронь ДРУГОЙ группы, то блок не подходит
+        if (vBlock || (gBlock && gBlock.group_id !== GROUP_ID)) {
+          blockValid = false;
+          break;
+        }
+      }
+
+      if (!blockValid) continue; // Пропускаем занятое время
+
+      // Считаем, сколько участников свободно в этом блоке
       let count = 0;
       for (const p of participants) {
         const avail = p.availability[dateKey(days[di])] || [];
@@ -634,18 +575,19 @@ function calculate() {
         }
         if (free) count++;
       }
+
+      // Если это лучший результат - запоминаем
       if (!best || count > best.count) {
         best = { day: di, hour: hi, count };
       }
     }
   }
 
-  document.querySelectorAll('.slot-bar.best, .slot-bar.busy-best').forEach(c => c.classList.remove('best', 'busy-best'));
-
   if (!best || best.count === 0) {
-    return showResult('<h2>Нет общего времени</h2><div class="details">Пока нет ни одного 4-часового окна, свободного хотя бы для одного участника.</div>');
+    return showResult('<h2>Нет общего времени</h2><div class="details">Пока нет ни одного 4-часового окна, свободного для участников (с учетом броней помещения).</div>');
   }
 
+  // Подсвечиваем лучший результат
   for (let k = 0; k < BLOCK_SIZE; k++) {
     const hi = best.hour + k;
     participants.forEach((p, pi) => {
