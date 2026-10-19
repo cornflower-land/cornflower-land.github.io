@@ -110,6 +110,29 @@
   </div>
 </div>
 
+<div id="profile-modal" class="modal hidden">
+  <div class="modal-content">
+    <h2>Настройки профиля</h2>
+    
+    <label style="font-size: 13px; font-weight: bold; margin-bottom: 4px; display: block;">Отображаемое имя</label>
+    <input type="text" id="prof-name" style="width: 100%; padding: 10px; margin-bottom: 4px; border: 1px solid #d1d1d6; border-radius: 6px;">
+    <div id="name-error" style="color: #d70015; font-size: 12px; margin-bottom: 12px; display: none;"></div>
+
+    <label style="font-size: 13px; font-weight: bold; margin-bottom: 4px; display: block;">Сменить пароль (оставьте пустым, если не хотите менять)</label>
+    <input type="password" id="prof-password" placeholder="Новый пароль" style="width: 100%; padding: 10px; margin-bottom: 16px; border: 1px solid #d1d1d6; border-radius: 6px;">
+
+    <div class="modal-buttons" style="justify-content: space-between; margin-bottom: 20px;">
+      <button id="prof-cancel" style="border: none; color: #0071e3; background: none; padding: 0; cursor: pointer;">Отмена</button>
+      <button id="prof-save" class="primary">Сохранить</button>
+    </div>
+
+    <div style="border-top: 1px solid #e5e5ea; padding-top: 16px;">
+      <p style="font-size: 13px; color: #6e6e73; margin-top: 0;">Опасная зона</p>
+      <button id="prof-delete" style="background: white; color: #d70015; border: 1px solid #d70015; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-family: inherit; width: 100%;">Удалить аккаунт навсегда</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://xzawwrmyrlihodrowxji.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6YXd3cm15cmxpaG9kcm93eGppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIzNjQ5NzksImV4cCI6MjEwNzk0MDk3OX0.cS5G7e-pJ6eX68w07JhW2ZcWESPRyZb3Mrn-cKP0yyA';
@@ -380,29 +403,6 @@ document.getElementById('forgot-password').addEventListener('click', async () =>
 init();
 </script>
 
-
-<div id="profile-modal" class="modal hidden">
-  <div class="modal-content">
-    <h2>Настройки профиля</h2>
-    
-    <label style="font-size: 13px; font-weight: bold; margin-bottom: 4px; display: block;">Отображаемое имя</label>
-    <input type="text" id="prof-name" style="width: 100%; padding: 10px; margin-bottom: 4px; border: 1px solid #d1d1d6; border-radius: 6px;">
-    <div id="name-error" style="color: #d70015; font-size: 12px; margin-bottom: 12px; display: none;"></div>
-
-    <label style="font-size: 13px; font-weight: bold; margin-bottom: 4px; display: block;">Сменить пароль (оставьте пустым, если не хотите менять)</label>
-    <input type="password" id="prof-password" placeholder="Новый пароль" style="width: 100%; padding: 10px; margin-bottom: 16px; border: 1px solid #d1d1d6; border-radius: 6px;">
-
-    <div class="modal-buttons" style="justify-content: space-between; margin-bottom: 20px;">
-      <button id="prof-cancel" style="border: none; color: #0071e3; background: none; padding: 0; cursor: pointer;">Отмена</button>
-      <button id="prof-save" class="primary">Сохранить</button>
-    </div>
-
-    <div style="border-top: 1px solid #e5e5ea; padding-top: 16px;">
-      <p style="font-size: 13px; color: #6e6e73; margin-top: 0;">Опасная зона</p>
-      <button id="prof-delete" style="background: white; color: #d70015; border: 1px solid #d70015; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-family: inherit; width: 100%;">Удалить аккаунт навсегда</button>
-    </div>
-  </div>
-</div>
 
 </body>
 </html>
