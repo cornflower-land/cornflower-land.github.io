@@ -126,22 +126,23 @@
   .legend-swatch.busy-best { background: #ff3b30; border-color: #ff3b30; }
 
   
-  .slot-bar.venue-block { background-color: #8e8e93 !important; cursor: not-allowed; }
-  .slot-bar.group-booked { 
-    background-color: #af52de !important; 
-    cursor: not-allowed; 
-    color: white; 
-    font-size: 10px; 
-    line-height: 1; 
-    white-space: nowrap; 
-    text-overflow: ellipsis; 
-    text-align: center; 
-    display: flex; 
-    align-items: center; 
-    justify-content: center; 
-    overflow: hidden;
-    font-weight: 600;
+  .slot-bar { position: relative; } /* Важно для позиционирования слоя */
+  
+  .slot-bar.venue-block::after { 
+    content: ''; position: absolute; inset: 0;
+    background-color: rgba(142, 142, 147, 0.7); /* Полупрозрачный серый */
+    pointer-events: none; /* Клики проходят сквозь слой */
   }
+  .slot-bar.group-booked::after { 
+    content: ''; position: absolute; inset: 0;
+    background-color: rgba(175, 82, 222, 0.7); /* Полупрозрачный фиолетовый */
+    pointer-events: none;
+  }
+  
+  /* Убираем старые стили, которые перекрывали цвет */
+  .slot-bar.venue-block { cursor: not-allowed; }
+  .slot-bar.group-booked { cursor: not-allowed; }
+
   
   #grid.painting-mode { cursor: crosshair !important; }
   
@@ -577,17 +578,21 @@ function renderGrid() {
         const vBlock = venueBookings.find(b => b.date === dateStr && b.hour === h);
         const gBlock = groupBookings.find(b => b.date === dateStr && b.hour === h);
 
+        // 1. Сначала красим в зеленый, если свободен
+        if (p.availability[dateStr][hi]) bar.classList.add('free');
+
+        // 2. Затем накладываем брони (если есть)
         if (vBlock) {
           bar.classList.add('venue-block');
           bar.title = 'Помещение занято арендодателем';
         } else if (gBlock) {
           bar.classList.add('group-booked');
           bar.title = `Забронировано: ${gBlock.groups?.name || 'Группа'}`;
-          bar.textContent = gBlock.groups?.name || '';
-        } else {
-          if (p.availability[dateStr][hi]) bar.classList.add('free');
+        }
+
+        // 3. Привязываем события (они не блокируются, так как слой прозрачный для кликов)
+        if (isMe) {
           
-          if (isMe) {
             bar.addEventListener('mousedown', (e) => {
               e.preventDefault();
               isDragging = true;
@@ -600,8 +605,10 @@ function renderGrid() {
               if (isDragging) {
                 p.availability[dateStr][hi] = dragValue;
                 bar.classList.toggle('free', dragValue);
-              }
-            });
+              
+        } else {
+          bar.style.pointerEvents = 'none';
+        });
           } else {
             bar.style.pointerEvents = 'none';
           }
@@ -1127,12 +1134,13 @@ async function save() {
       const myRow = participants.find(p => p.id === currentUser.id);
       if (!myRow) return;
 
-      const { data, error } = await supabaseClient.from('schedules').upsert({
-        user_id: currentUser.id,
-        group_id: GROUP_ID,
-        availability: myRow.availability,
-        updated_at: new Date()
-      }, { onConflict: 'user_id,group_id' }).select();
+      // Обновляем расписание во ВСЕХ группах, где состоит пользователь
+      const { data, error } = await supabaseClient.from('schedules')
+        .update({
+          availability: myRow.availability,
+          updated_at: new Date()
+        })
+        .eq('user_id', currentUser.id);
 
       if (error) {
         console.error("Ошибка сохранения:", error);
