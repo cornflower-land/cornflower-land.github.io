@@ -1365,7 +1365,11 @@ avatarInput.addEventListener('change', async (e) => {
 avatarDeleteBtn.addEventListener('click', async () => {
   if (!confirm('Удалить аватарку?')) return;
   
-  await supabaseClient.from('profiles').update({ avatar_url: null }).eq('id', currentUser.id);
+  const { error } = await supabaseClient.from('profiles').update({ avatar_url: null }).eq('id', currentUser.id);
+  if (error) {
+    alert('Ошибка при удалении: ' + error.message);
+    return;
+  }
   currentAvatarUrl = null;
   updateAvatarUI();
   loadFromDB();
