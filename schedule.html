@@ -324,7 +324,7 @@
 <script>
 const HOURS = [8,9,10,11,12,13,14,15,16,17,18,19,20,21,22]; // 15 слотов
 const BLOCK_SIZE = 4;        // минимум 4 часа
-const NUM_DAYS = 14;          // следующих 7 дней
+const NUM_DAYS = 14;          // 14 дней, начиная с сегодняшнего
 const WEEKDAYS = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
 const MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 
@@ -360,7 +360,7 @@ function initDays() {
   days = [];
   const today = new Date();
   today.setHours(0,0,0,0);
-  for (let i = 1; i <= NUM_DAYS; i++) {
+  for (let i = 0; i < NUM_DAYS; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
     days.push(d);
