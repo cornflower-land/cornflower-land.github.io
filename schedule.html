@@ -399,7 +399,6 @@ function renderGrid() {
     table.style.setProperty('display', 'none', 'important');
     document.getElementById('tbody').innerHTML = '';
     
-    // Скрываем всё лишнее для неавторизованных
     if (toolbar) toolbar.style.display = 'none';
     if (resultBlock) resultBlock.style.display = 'none';
     if (adminTools) adminTools.style.display = 'none';
@@ -409,12 +408,10 @@ function renderGrid() {
     prompt.style.display = 'none';
     table.style.setProperty('display', 'block', 'important');
     
-    // Показываем панель управления для авторизованных
     if (toolbar) toolbar.style.display = 'flex';
-    if (resultBlock) resultBlock.style.display = ''; // Сбрасываем инлайн-стиль, чтобы CSS заработал
+    if (resultBlock) resultBlock.style.display = ''; 
   }
 
-  // Управление панелью админа (БЕЗ дублирующего const)
   if (currentUserRole === 'admin') {
     adminTools.style.display = 'flex';
     const select = document.getElementById('booking-group-select');
@@ -515,7 +512,7 @@ function renderGrid() {
 
     const nameTd = document.createElement('td');
     nameTd.className = 'name-cell';
-    nameTd.style.verticalAlign = 'middle'; // Центрируем по вертикали
+    nameTd.style.verticalAlign = 'middle';
 
     const nameWrapper = document.createElement('div');
     nameWrapper.style.display = 'flex';
@@ -524,7 +521,6 @@ function renderGrid() {
     nameWrapper.style.justifyContent = 'center';
     nameWrapper.style.gap = '8px';
 
-    // Аватарка участника
     if (p.avatar_url) {
       const img = document.createElement('img');
       img.src = p.avatar_url;
@@ -543,7 +539,7 @@ function renderGrid() {
     nameSpan.style.wordBreak = 'break-word';
     nameSpan.style.whiteSpace = 'normal';
     nameSpan.style.lineHeight = '1.2';
-    nameSpan.style.maxWidth = '140px'; // Ограничиваем ширину текста внутри колонки
+    nameSpan.style.maxWidth = '140px';
     nameWrapper.appendChild(nameSpan);
 
     nameTd.appendChild(nameWrapper);
@@ -590,29 +586,26 @@ function renderGrid() {
           bar.title = `Забронировано: ${gBlock.groups?.name || 'Группа'}`;
         }
 
-        // 3. Привязываем события (они не блокируются, так как слой прозрачный для кликов)
+        // 3. Привязываем события (клики работают сквозь слой)
         if (isMe) {
-          
-            bar.addEventListener('mousedown', (e) => {
-              e.preventDefault();
-              isDragging = true;
-              dragValue = !p.availability[dateStr][hi];
+          bar.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            isDragging = true;
+            dragValue = !p.availability[dateStr][hi];
+            p.availability[dateStr][hi] = dragValue;
+            bar.classList.toggle('free', dragValue);
+            save();
+          });
+          bar.addEventListener('mouseenter', () => {
+            if (isDragging) {
               p.availability[dateStr][hi] = dragValue;
               bar.classList.toggle('free', dragValue);
-              save();
-            });
-            bar.addEventListener('mouseenter', () => {
-              if (isDragging) {
-                p.availability[dateStr][hi] = dragValue;
-                bar.classList.toggle('free', dragValue);
-              
+            }
+          });
         } else {
           bar.style.pointerEvents = 'none';
-        });
-          } else {
-            bar.style.pointerEvents = 'none';
-          }
         }
+        
         slot.appendChild(bar);
         dayCell.appendChild(slot);
       });
@@ -623,10 +616,8 @@ function renderGrid() {
   });
 }
 
-
 // Логика применения кисти
 function applyTool(dateStr, hour) {
-  // 1. Мгновенно обновляем локальные данные и DOM
   if (currentTool === 'venue') {
     groupBookings = groupBookings.filter(b => !(b.date === dateStr && b.hour === hour));
     if (!venueBookings.find(b => b.date === dateStr && b.hour === hour)) {
@@ -644,10 +635,9 @@ function applyTool(dateStr, hour) {
     venueBookings = venueBookings.filter(b => !(b.date === dateStr && b.hour === hour));
   }
 
-  // 2. Обновляем все DOM-элементы для этого времени
+  // Обновляем только слои поверх (не трогаем класс .free)
   document.querySelectorAll(`.slot-bar[data-date="${dateStr}"][data-hour="${hour}"]`).forEach(bar => {
-    bar.className = 'slot-bar';
-    bar.textContent = '';
+    bar.classList.remove('venue-block', 'group-booked');
     bar.title = '';
     
     const vBlock = venueBookings.find(b => b.date === dateStr && b.hour === hour);
@@ -658,22 +648,11 @@ function applyTool(dateStr, hour) {
       bar.title = 'Помещение занято арендодателем';
     } else if (gBlock) {
       bar.classList.add('group-booked');
-      const gName = gBlock.groups?.name || 'Группа';
-      bar.title = `Забронировано: ${gName}`;
-      bar.textContent = gName.substring(0, 10);
-    } else {
-      // Восстанавливаем свободное время для участника (если это его ячейка)
-      if (bar.dataset.pi !== undefined) {
-        const p = participants[bar.dataset.pi];
-        const d = days[bar.dataset.di];
-        if (p && p.availability[dateKey(d)][bar.dataset.hi]) {
-          bar.classList.add('free');
-        }
-      }
+      bar.title = `Забронировано: ${gBlock.groups?.name || 'Группа'}`;
     }
   });
 
-  // 3. Отправляем в БД в фоне (без await, чтобы не тормозило)
+  // Отправляем в БД в фоне
   if (currentTool === 'venue') {
     supabaseClient.from('group_bookings').delete().eq('date', dateStr).eq('hour', hour).then();
     supabaseClient.from('venue_blocks').delete().eq('date', dateStr).eq('hour', hour).then(() => {
