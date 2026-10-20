@@ -545,8 +545,13 @@ groupAvatarInput.addEventListener('change', async (e) => {
     const { error } = await supabaseClient.storage.from('avatars').upload(fileName, compressedBlob, { contentType: 'image/jpeg', upsert: true });
     if (error) throw error;
     const { data: { publicUrl } } = supabaseClient.storage.from('avatars').getPublicUrl(fileName);
+    const oldUrl = currentGroupAvatarUrl;
     currentGroupAvatarUrl = publicUrl;
     updateGroupAvatarUI();
+    if (oldUrl) {
+      const oldName = oldUrl.split('/').pop();
+      supabaseClient.storage.from('avatars').remove([oldName]).then();
+    }
   } catch (err) {
     alert('Ошибка при загрузке: ' + err.message);
   } finally {
@@ -557,8 +562,13 @@ groupAvatarInput.addEventListener('change', async (e) => {
 });
 
 groupAvatarDeleteBtn.addEventListener('click', () => {
+  const oldUrl = currentGroupAvatarUrl;
   currentGroupAvatarUrl = null;
   updateGroupAvatarUI();
+  if (oldUrl) {
+    const oldName = oldUrl.split('/').pop();
+    supabaseClient.storage.from('avatars').remove([oldName]).then();
+  }
 });
 
 function updateGroupAvatarUI() {
@@ -663,9 +673,14 @@ avatarInput.addEventListener('change', async (e) => {
     const { error } = await supabaseClient.storage.from('avatars').upload(fileName, compressedBlob, { contentType: 'image/jpeg', upsert: true });
     if (error) throw error;
     const { data: { publicUrl } } = supabaseClient.storage.from('avatars').getPublicUrl(fileName);
+    const oldUrl = currentAvatarUrl;
     await supabaseClient.from('profiles').update({ avatar_url: publicUrl }).eq('id', currentUser.id);
     currentAvatarUrl = publicUrl;
     updateAvatarUI();
+    if (oldUrl) {
+      const oldName = oldUrl.split('/').pop();
+      supabaseClient.storage.from('avatars').remove([oldName]).then();
+    }
     
     // Обновляем верхнюю плашку без перезагрузки
     const topAvatar = document.getElementById('user-avatar-top');
@@ -682,12 +697,17 @@ avatarInput.addEventListener('change', async (e) => {
 
 avatarDeleteBtn.addEventListener('click', async () => {
   if (!confirm('Удалить аватарку?')) return;
+  const oldUrl = currentAvatarUrl;
   const { error } = await supabaseClient.from('profiles').update({ avatar_url: null }).eq('id', currentUser.id);
   if (error) {
     alert('Ошибка при удалении: ' + error.message);
     return;
   }
   currentAvatarUrl = null;
+  if (oldUrl) {
+    const oldName = oldUrl.split('/').pop();
+    supabaseClient.storage.from('avatars').remove([oldName]).then();
+  }
   updateAvatarUI();
   document.getElementById('user-avatar-top').style.display = 'none';
 });

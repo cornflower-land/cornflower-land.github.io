@@ -1344,11 +1344,14 @@ avatarInput.addEventListener('change', async (e) => {
     const { data: { publicUrl } } = supabaseClient.storage.from('avatars').getPublicUrl(fileName);
 
     // 4. Сохраняем в профиль
+    const oldUrl = currentAvatarUrl;
     await supabaseClient.from('profiles').update({ avatar_url: publicUrl }).eq('id', currentUser.id);
-    
-    // Обновляем UI
     currentAvatarUrl = publicUrl;
     updateAvatarUI();
+    if (oldUrl) {
+      const oldName = oldUrl.split('/').pop();
+      supabaseClient.storage.from('avatars').remove([oldName]).then();
+    }
     
     // Обновляем сетку (чтобы аватарка появилась в таблице)
     loadFromDB();
@@ -1365,12 +1368,17 @@ avatarInput.addEventListener('change', async (e) => {
 avatarDeleteBtn.addEventListener('click', async () => {
   if (!confirm('Удалить аватарку?')) return;
   
+  const oldUrl = currentAvatarUrl;
   const { error } = await supabaseClient.from('profiles').update({ avatar_url: null }).eq('id', currentUser.id);
   if (error) {
     alert('Ошибка при удалении: ' + error.message);
     return;
   }
   currentAvatarUrl = null;
+  if (oldUrl) {
+    const oldName = oldUrl.split('/').pop();
+    supabaseClient.storage.from('avatars').remove([oldName]).then();
+  }
   updateAvatarUI();
   loadFromDB();
 });
