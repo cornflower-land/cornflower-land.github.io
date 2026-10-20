@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Расписание литературного клуба</title>
+<title>Загрузка... | Литературный клуб</title>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -206,11 +206,11 @@
 
 
 <a href="index.html" style="display: inline-block; margin-bottom: 10px; color: #0071e3; text-decoration: none;">&larr; На главную</a>
-<h1>Расписание литературного клуба</h1>
+<h1 id="page-title">Загрузка расписания...</h1>
 <p class="subtitle">Отметьте часы, когда вы свободны. Минимальная длительность встречи — 4 часа.</p>
 
 <div class="hint">
-  <b>Как пользоваться:</b> нажмите «Войти / Регистрация», укажите свой email и пароль. Затем введите ваше имя и просто закрасьте часы, когда вы свободны. Ваши изменения сохранятся автоматически и будут видны всем участникам.
+  <b>Как пользоваться:</b> просто закрасьте часы, когда вы свободны. Ваши изменения сохраняются автоматически.<br><span style="color: #0071e3; font-size: 12px; display: inline-block; margin-top: 4px;">💡 Обратите внимание: ваши отметки синхронизируются и будут отображаться во всех группах клуба, где вы состоите.</span>
 </div>
 
 <div class="toolbar">
@@ -1071,6 +1071,15 @@ async function loadFromDB() {
 
     const { data: grData } = await supabaseClient.from('groups').select('id, name');
     allGroups = grData || [];
+
+    // --- Динамическое обновление заголовков (Название группы) ---
+    const currentGroupObj = allGroups.find(g => g.id === GROUP_ID);
+    if (currentGroupObj) {
+      document.title = currentGroupObj.name + ' | Литературный клуб';
+      const pageTitleEl = document.getElementById('page-title');
+      if (pageTitleEl) pageTitleEl.textContent = currentGroupObj.name;
+    }
+    // -----------------------------------------------------------
 
     const { data, error } = await supabaseClient.from('schedules').select('*').eq('group_id', GROUP_ID);
     if (error) {
