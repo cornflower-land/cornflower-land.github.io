@@ -126,8 +126,16 @@
   .legend-swatch.busy-best { background: #ff3b30; border-color: #ff3b30; }
 
   
-  .slot-bar { position: relative; } /* Важно для позиционирования слоя */
+  .slot-bar { 
+    position: relative; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    overflow: hidden; 
+  }
   
+  .slot-bar::after { z-index: 1; }
+
   .slot-bar.venue-block::after { 
     content: ''; position: absolute; inset: 0;
     background-color: rgba(142, 142, 147, 0.7); /* Полупрозрачный серый */
@@ -137,6 +145,12 @@
     content: ''; position: absolute; inset: 0;
     background-color: rgba(175, 82, 222, 0.7); /* Полупрозрачный фиолетовый */
     pointer-events: none;
+  }
+  .booking-text {
+    position: relative; z-index: 2; pointer-events: none;
+    font-size: 10px; color: white; white-space: nowrap; 
+    overflow: hidden; text-overflow: ellipsis;
+    max-width: 100%; padding: 0 2px; line-height: 1;
   }
   
   /* Убираем старые стили, которые перекрывали цвет */
@@ -468,7 +482,7 @@ function renderGrid() {
           bar.classList.add('venue-block');
         } else if (gBlock) {
           bar.classList.add('group-booked');
-          bar.textContent = gBlock.groups?.name || '';
+          bar.innerHTML = '<span class="booking-text">' + (gBlock.groups?.name || '') + '</span>';
         }
 
         bar.addEventListener('mousedown', (e) => {
@@ -583,6 +597,7 @@ function renderGrid() {
           bar.title = 'Помещение занято арендодателем';
         } else if (gBlock) {
           bar.classList.add('group-booked');
+          bar.innerHTML = '<span class="booking-text">' + (gBlock.groups?.name || '') + '</span>';
           bar.title = `Забронировано: ${gBlock.groups?.name || 'Группа'}`;
         }
 
@@ -639,6 +654,7 @@ function applyTool(dateStr, hour) {
   document.querySelectorAll(`.slot-bar[data-date="${dateStr}"][data-hour="${hour}"]`).forEach(bar => {
     bar.classList.remove('venue-block', 'group-booked');
     bar.title = '';
+    bar.innerHTML = ''; // Очищаем старый текст
     
     const vBlock = venueBookings.find(b => b.date === dateStr && b.hour === hour);
     const gBlock = groupBookings.find(b => b.date === dateStr && b.hour === hour);
@@ -648,6 +664,7 @@ function applyTool(dateStr, hour) {
       bar.title = 'Помещение занято арендодателем';
     } else if (gBlock) {
       bar.classList.add('group-booked');
+      bar.innerHTML = '<span class="booking-text">' + (gBlock.groups?.name || '') + '</span>';
       bar.title = `Забронировано: ${gBlock.groups?.name || 'Группа'}`;
     }
   });
@@ -1416,10 +1433,21 @@ document.getElementById('joinLeaveBtn').addEventListener('click', async () => {
     }
   } else {
     // Присоединяемся
+    // Ищем существующее расписание пользователя в любой группе, чтобы синхронизировать часы
+    let existingAvailability = {};
+    const { data: existingSchedules } = await supabaseClient.from('schedules')
+      .select('availability')
+      .eq('user_id', currentUser.id)
+      .limit(1);
+    
+    if (existingSchedules && existingSchedules.length > 0 && existingSchedules[0].availability) {
+      existingAvailability = existingSchedules[0].availability;
+    }
+
     await supabaseClient.from('schedules').insert({
       user_id: currentUser.id,
       group_id: GROUP_ID,
-      availability: {}
+      availability: existingAvailability
     });
   }
   loadFromDB();
