@@ -56,7 +56,11 @@
     box-shadow: 0 6px 14px rgba(0,113,227,0.4);
   }
 
-  .group-card-wrapper { position: relative; }
+  .group-card-wrapper { 
+    position: relative; 
+    -webkit-touch-callout: none; /* Отключает меню на iOS */
+    user-select: none;           /* Запрещает выделение текста */
+  }
   .group-actions {
     position: absolute; top: 8px; right: 8px;
     display: flex; gap: 4px; z-index: 10;
@@ -76,41 +80,40 @@
   .group-card-wrapper:active { cursor: grabbing; }
   .sortable-ghost { opacity: 0.4; background-color: #e8f1fd; border: 2px dashed #0071e3; }
 
-  /* --- Мобильная адаптация карточек --- */
+  /* --- Мобильная адаптация карточек (mobile_fix_square) --- */
   @media (max-width: 600px) {
     .groups-grid {
-      grid-template-columns: 1fr;
-      gap: 20px; /* Больше места для скролла между карточками */
+      grid-template-columns: repeat(2, 1fr); /* Две колонки для компактности */
+      gap: 10px;
     }
     .group-card {
-      aspect-ratio: auto; /* Убираем квадрат */
-      flex-direction: row; /* Горизонтальное расположение */
-      padding: 12px 16px;
-      text-align: left;
-      align-items: center;
-      justify-content: flex-start;
-      gap: 16px;
+      padding: 10px;
+      aspect-ratio: 1 / 1; /* Оставляем строго квадратными */
     }
     .group-avatar {
-      margin-bottom: 0;
-      width: 64px;
-      height: 64px;
-      flex-shrink: 0;
+      width: 60px;
+      height: 60px;
+      margin-bottom: 8px;
+      margin-top: 4px;
     }
     .group-card h2 {
-      margin: 0 0 4px 0;
-      font-size: 16px;
-      text-align: left;
+      margin: 16px 0 4px; /* Отступ сверху, чтобы не налезать на кнопки */
+      font-size: 13px;
+      line-height: 1.1;
     }
     .group-card p {
-      margin: 0;
-      font-size: 12px;
+      font-size: 10px;
+      margin-top: auto;
     }
-    /* Центрируем кнопки управления (редактировать/удалить) по вертикали */
     .group-actions {
-      top: 50% !important;
-      transform: translateY(-50%);
-      right: 12px !important;
+      top: 6px;
+      right: 6px;
+      gap: 2px;
+    }
+    .group-actions button {
+      width: 20px;
+      height: 20px;
+      font-size: 10px;
     }
   }
 </style>
@@ -863,6 +866,13 @@ document.getElementById('forgot-password').addEventListener('click', async () =>
   }
 });
 
+
+// Блокируем вызов контекстного меню на карточках (нужно для Drag & Drop на мобильных)
+document.getElementById('groups-container').addEventListener('contextmenu', (e) => {
+  if (e.target.closest('.group-card-wrapper')) {
+    e.preventDefault();
+  }
+});
 
 init();
 </script>
