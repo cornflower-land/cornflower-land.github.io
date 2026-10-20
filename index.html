@@ -75,6 +75,44 @@
   .group-card-wrapper { cursor: grab; }
   .group-card-wrapper:active { cursor: grabbing; }
   .sortable-ghost { opacity: 0.4; background-color: #e8f1fd; border: 2px dashed #0071e3; }
+
+  /* --- Мобильная адаптация карточек --- */
+  @media (max-width: 600px) {
+    .groups-grid {
+      grid-template-columns: 1fr;
+      gap: 20px; /* Больше места для скролла между карточками */
+    }
+    .group-card {
+      aspect-ratio: auto; /* Убираем квадрат */
+      flex-direction: row; /* Горизонтальное расположение */
+      padding: 12px 16px;
+      text-align: left;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 16px;
+    }
+    .group-avatar {
+      margin-bottom: 0;
+      width: 64px;
+      height: 64px;
+      flex-shrink: 0;
+    }
+    .group-card h2 {
+      margin: 0 0 4px 0;
+      font-size: 16px;
+      text-align: left;
+    }
+    .group-card p {
+      margin: 0;
+      font-size: 12px;
+    }
+    /* Центрируем кнопки управления (редактировать/удалить) по вертикали */
+    .group-actions {
+      top: 50% !important;
+      transform: translateY(-50%);
+      right: 12px !important;
+    }
+  }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
@@ -485,6 +523,8 @@ async function loadGroups() {
     new Sortable(container, {
       animation: 150,
       ghostClass: 'sortable-ghost',
+      delay: 300, // Задержка 0.3 сек перед началом перетаскивания
+      delayOnTouchOnly: true, // Задержка работает ТОЛЬКО на сенсорных экранах (телефонах)
       onEnd: async function (evt) {
         // Получаем все карточки в новом порядке
         const items = container.querySelectorAll('.group-card-wrapper');
