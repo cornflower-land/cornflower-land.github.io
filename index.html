@@ -155,6 +155,12 @@
       <input type="text" id="auth-display-name" maxlength="50" placeholder="Отображаемое имя (как вас называть?)" style="width: 100%; padding: 10px; margin-bottom: 8px; border: 1px solid #d1d1d6; border-radius: 6px;">
       <p style="font-size: 11px; color: #6e6e73; margin-top: 0; margin-bottom: 8px;">Email нигде не отображается и нужен только для входа.</p>
     </div>
+    
+    <div style="font-size: 11px; color: #6e6e73; text-align: center; margin-top: 8px; line-height: 1.4; background: #f5f5f7; padding: 8px; border-radius: 6px;">
+      📧 Письмо может идти до <b>10 минут</b>. Если его нет во «Входящих», проверьте <b>«Спам»</b>.<br>
+      Нужна помощь? <a href="https://t.me/TheCornflowerLandCHAT" target="_blank" style="color: #0071e3; text-decoration: none; font-weight: 600;">t.me/TheCornflowerLandCHAT</a>
+    </div>
+
     <div id="auth-error" style="color: #d70015; font-size: 12px; margin-bottom: 8px; display: none;"></div>
     <div class="modal-buttons">
       <button id="forgot-password" style="border: none; color: #6e6e73; background: none; padding: 0; font-size: 12px;">Забыли пароль?</button>
@@ -386,7 +392,7 @@ document.getElementById('auth-submit').addEventListener('click', async () => {
       }
 
       if (data.user && !data.session) {
-        alert('Регистрация успешна! Проверьте почту.');
+        alert('Регистрация успешна!\n\n📧 Письмо прилетит в течение 10 минут.\n⚠️ Если его нет во «Входящих», обязательно проверьте «Спам».\n\nПри возникновении сложностей пишите в чат: t.me/TheCornflowerLandCHAT');
         authModal.classList.add('hidden');
       } else {
         window.location.reload();
@@ -862,7 +868,7 @@ document.getElementById('forgot-password').addEventListener('click', async () =>
   if (error) {
     alert('Ошибка: ' + error.message);
   } else {
-    alert('Ссылка для сброса пароля отправлена на вашу почту!');
+    alert('Ссылка для сброса пароля отправлена!\n\n📧 Письмо прилетит в течение 10 минут.\n⚠️ Если его нет во «Входящих», обязательно проверьте «Спам».\n\nПри возникновении сложностей пишите в чат: t.me/TheCornflowerLandCHAT');
   }
 });
 
