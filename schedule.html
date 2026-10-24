@@ -713,9 +713,17 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const resetModal = document.getElementById('reset-password-modal');
 const resetError = document.getElementById('reset-error');
 
+window.isLoggingOut = false;
+
 supabaseClient.auth.onAuthStateChange((event, session) => {
   if (event === 'PASSWORD_RECOVERY') {
     resetModal.classList.remove('hidden');
+  } else if (event === 'SIGNED_OUT') {
+    // Если это не ручной выход, значит сессия истекла
+    if (!window.isLoggingOut) {
+      alert('Ваша сессия истекла. Пожалуйста, войдите заново, чтобы продолжить работу.');
+      window.location.href = 'index.html'; // Перенаправляем на главную
+    }
   }
 });
 
@@ -993,6 +1001,7 @@ document.getElementById('auth-submit').addEventListener('click', async () => {
 });
 
 logoutBtn.addEventListener('click', async () => {
+  window.isLoggingOut = true; // Ставим флаг ручного выхода
   await supabaseClient.auth.signOut();
   window.location.reload();
 });
@@ -1288,6 +1297,7 @@ document.getElementById('prof-delete').addEventListener('click', async () => {
     alert('Ошибка при удалении: ' + error.message);
   } else {
     alert('Аккаунт удален.');
+    window.isLoggingOut = true; // Ставим флаг перед выходом
     await supabaseClient.auth.signOut();
     window.location.reload();
   }
